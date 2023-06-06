@@ -2,32 +2,46 @@ import numpy as np
 import cv2 as cv
 import time
 import math
+import os
 
 class VideoException(Exception):
     "Exception raised on problems with video capture"
     pass
 
 class Grabber:
-    def __init__(self, **kwargs):
-        self.foo = 1
+
+    def __init__(self, outdir, time_span, px_per_second, preview, left_to_right, **kwargs):
         self.video_capture = False
 
-        self.time_span = kwargs.get('time_span', 10) # sec
-        self.px_per_second = kwargs.get('px_per_second', 2 * 29) # 2px * 29fps 
-        self.flip_input = kwargs.get('flip_input', False)
-        self.preview = kwargs.get('preview', False)
+        self.outdir = outdir
+        self.time_span = time_span
+        self.px_per_second = px_per_second
+        self.preview = preview
+        self.flip_input = not left_to_right
+        self.webp_quality = kwargs.get('webp_quality', 90)        
+        self.stamp_options = { 
+            'time':  kwargs.get('stamp_time', True),
+            'fps':  kwargs.get('stamp_fps', False)
+        }
 
-    def start(self):
+    def start(self, session_name):
+        os.makedirs(f'{self.outdir}/{session_name}')
+
         self.__initVideo()
         
         time_first_start = time.time()
         i = 0
         while True:
             img, metadata = self.__captureOneTimeSpan(time_first_start + (i * self.time_span))
-            img = cv.putText(img, time.ctime(metadata.get('time_start')), (4, self.src_height - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
-            img = cv.putText(img, str(metadata.get('fps')) + "FPS", (4, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
+            if self.stamp_options.get('time'):
+                img = cv.putText(img, time.ctime(metadata.get('time_start')), (4, self.src_height - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
+            if self.stamp_options.get('fps'):
+                img = cv.putText(img, str(metadata.get('fps')) + "FPS", (4, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
             if self.preview:
                 cv.imshow('Last Image', img)
+            filename = f'{self.outdir}/{session_name}/img{i}.webp'    
+            cv.imwrite(filename, img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality])
+            print("Image taken", filename, metadata) 
             i += 1
 
     def __captureOneTimeSpan(self, time_start):
