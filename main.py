@@ -18,7 +18,7 @@ parser.add_argument('-x', '--px-per-second', type = int, default = 2*29, help = 
 parser.add_argument('--no-stamp-time', action='store_true', help = 'Do not print timestamp on each output image') 
 parser.add_argument('--stamp-fps', action='store_true', help = 'Print FPS on each output image') 
 
-parser.add_argument('--webp-quality', type = int, help = 'Quality for webp compression (default: 90)') 
+parser.add_argument('--webp-quality', type = int, default = 90, help = 'Quality for webp compression (default: 90)') 
 
 args = parser.parse_args()
 

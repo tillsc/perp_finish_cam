@@ -48,7 +48,7 @@ class Grabber:
         dest_width = self.time_span * self.px_per_second
 
         dest = np.zeros((self.src_height, dest_width, 3), np.uint8)
-        #dest[:,:] = (200, 200, 200)
+        dest[:,:] = (200, 200, 200)
 
         i = 0
         while (time_now:= time.time()) < time_start + self.time_span:
