@@ -3,7 +3,7 @@ import cv2 as cv
 import time
 import math
 import os
-import colorsys
+import json
 
 class VideoException(Exception):
     "Exception raised on problems with video capture"
@@ -61,9 +61,12 @@ class Grabber:
 
             if self.preview:
                 cv.imshow('Last Image', img)
-            filename = f'{self.outdir}/{session_name}/img{i}.webp'    
-            cv.imwrite(filename, img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality])
-            print("Image taken", filename, metadata) 
+            basename = f'{self.outdir}/{session_name}/img{i}'    
+            cv.imwrite(f'{basename}.webp', img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality])
+            with open(f'{basename}.json', "w") as outfile:
+                json.dump(metadata, outfile, indent=4)
+            self.__writeIndexJson(session_name, time_first_start, i)
+            print("Image taken", basename, metadata)
             i += 1
 
     def __captureOneTimeSpan(self, time_start):
@@ -112,6 +115,19 @@ class Grabber:
             'time_start': time_start,
             'frame_count': 1, 'fps': 1
         }
+
+    def __writeIndexJson(self, session_name, time_first_start, index):
+        filename = f'{self.outdir}/index.json'
+        try:
+            with open(filename, 'r') as openfile:
+                index_data = json.load(openfile)
+        except FileNotFoundError:
+            index_data = {}
+        data = index_data.get(session_name,{  'time_start': time_first_start })
+        data['last_index'] = index
+        index_data[session_name] = data
+        with open(filename, 'w') as openfile:
+            json.dump(index_data, openfile)
 
     def __initVideo(self):
         self.video_capture = cv.VideoCapture(0)
