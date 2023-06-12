@@ -3,10 +3,13 @@ import cv2 as cv
 import time
 import math
 import os
+import colorsys
 
 class VideoException(Exception):
     "Exception raised on problems with video capture"
     pass
+
+STAMPS_COLOR = (100, 255, 100)
 
 class Grabber:
 
@@ -18,10 +21,13 @@ class Grabber:
         self.px_per_second = px_per_second
         self.preview = preview
         self.flip_input = not left_to_right
-        self.webp_quality = kwargs.get('webp_quality', 90)        
+        self.webp_quality = kwargs.get('webp_quality', 90)   
+        self.test_mode = kwargs.get('test_mode', 0)     
         self.stamp_options = { 
             'time':  kwargs.get('stamp_time', True),
-            'fps':  kwargs.get('stamp_fps', False)
+            'fps':  kwargs.get('stamp_fps', False),
+            'ticks': kwargs.get('stamp_ticks', True),
+            'tick-texts': kwargs.get('stamp_tick_texts', True) 
         }
 
     def start(self, session_name):
@@ -32,11 +38,27 @@ class Grabber:
         time_first_start = time.time()
         i = 0
         while True:
-            img, metadata = self.__captureOneTimeSpan(time_first_start + (i * self.time_span))
+            if self.test_mode != None:
+                if i >= self.test_mode:
+                    break
+                img, metadata = self.__takeTestImage(time_first_start + (i * self.time_span), i)
+            else:
+                img, metadata = self.__captureOneTimeSpan(time_first_start + (i * self.time_span))
+            
+            height, width = img.shape[:2]
+            time_start = metadata.get('time_start')
             if self.stamp_options.get('time'):
-                img = cv.putText(img, time.ctime(metadata.get('time_start')), (4, self.src_height - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
+                img = cv.putText(img, time.ctime(time_start), (4, height - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, STAMPS_COLOR, 1, cv.LINE_AA)
             if self.stamp_options.get('fps'):
-                img = cv.putText(img, str(metadata.get('fps')) + "FPS", (4, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1, cv.LINE_AA)
+                img = cv.putText(img, str(metadata.get('fps')) + "FPS", (4, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, STAMPS_COLOR, 1, cv.LINE_AA)
+            if self.stamp_options.get('ticks'):
+                for ix in range(-1, self.time_span):
+                    x = ix * (width // self.time_span) + 1 
+                    x = round((ix + (time_start - math.floor(time_start))) * self.px_per_second) 
+                    img = cv.line(img, (x, height - 10), (x, height), STAMPS_COLOR, 1)
+                    if (self.stamp_options.get('tick-texts')):
+                        img = cv.putText(img, str((math.floor(time_start + ix) % 60)), (x + 3, height - 3), cv.FONT_HERSHEY_SIMPLEX, 0.3, STAMPS_COLOR, 1, cv.LINE_AA)
+
             if self.preview:
                 cv.imshow('Last Image', img)
             filename = f'{self.outdir}/{session_name}/img{i}.webp'    
@@ -47,8 +69,7 @@ class Grabber:
     def __captureOneTimeSpan(self, time_start):
         dest_width = self.time_span * self.px_per_second
 
-        dest = np.zeros((self.src_height, dest_width, 3), np.uint8)
-        dest[:,:] = (200, 200, 200)
+        dest = np.full((self.src_height, dest_width, 3), (200, 200, 200), np.uint8)
 
         i = 0
         while (time_now:= time.time()) < time_start + self.time_span:
@@ -79,6 +100,18 @@ class Grabber:
             'time_start': time_start, 
             'frame_count': i, 'fps': fps
             }
+
+    def __takeTestImage(self, time_start, index):
+        dest_width = self.time_span * self.px_per_second
+
+        hls_color = ((index * 11 % 360), 50, 255)
+        dest = np.full((self.src_height, dest_width, 3), hls_color, np.uint8)
+        dest = cv.cvtColor(dest, cv.COLOR_HLS2RGB)
+
+        return dest, {
+            'time_start': time_start,
+            'frame_count': 1, 'fps': 1
+        }
 
     def __initVideo(self):
         self.video_capture = cv.VideoCapture(0)
