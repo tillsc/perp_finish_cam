@@ -6,26 +6,16 @@ import os
 import json
 import asyncio
 import concurrent.futures
+import logging
 
-class Event_ts(asyncio.Event):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-    def set(self):
-        self._loop.call_soon_threadsafe(super().set)
-
-    def clear(self):
-        super().clear()
-        self._loop.call_soon_threadsafe(super().clear)
+import finishcam.pubsub
 
 class VideoException(Exception):
     "Exception raised on problems with video capture"
     pass
 
 class TimeSpanGrabber():
-    def __init__(self, grabber, session_name, time_start, index):
+    def __init__(self, grabber, time_start, index):
 
         self.grabber = grabber
         
@@ -33,7 +23,7 @@ class TimeSpanGrabber():
         self.height = self.grabber.src_height
         self.img = np.full((self.height, self.width, 3), (200, 200, 200), np.uint8)
         self.metadata = { 
-            'session_name': session_name,
+            'session_name': self.grabber.session_name,
             'time_start': time_start,
             'index': index, 
             'frame_count': 0, 
@@ -52,7 +42,7 @@ class TimeSpanGrabber():
             return
 
         while (time_passed:= (time.time() - self.metadata['time_start'])) <  self.grabber.time_span:
-            src = self.grabber.captureFrame()
+            src = self.grabber.capture_frame()
             left = round(time_passed * self.grabber.px_per_second)
 
             max_slot_width = self.width - left
@@ -68,7 +58,7 @@ class TimeSpanGrabber():
             self.metadata['frame_count'] += 1  
             self.metadata['fps'] = self.metadata['frame_count'] / time_passed
 
-            self.grabber.capture_event.set()
+            self.grabber.hub.publish('live_image', self.img)
               
         if self.metadata['fps'] > self.grabber.px_per_second:  
             print(f"Real FPS ({self.metadata['fps']}) allows higher resolution (>= {round(self.metadata['fps'])} px/sec - current is {self.grabber.px_per_second} px/sec)")
@@ -86,9 +76,9 @@ class Grabber:
     def __init__(self, outdir, time_span, px_per_second, preview, left_to_right, **kwargs):
         self.video_capture = False
 
-        self.current_capture = None
-        self.capture_event = Event_ts()
-        self.processed_event = Event_ts()
+        self.session_name = time.strftime("%Y%m%d-%H%M%S")
+
+        self.hub = finishcam.pubsub.Hub()
 
         self.outdir = outdir
         self.time_span = time_span
@@ -104,64 +94,53 @@ class Grabber:
             'tick-texts': kwargs.get('stamp_tick_texts', True) 
         }
         
-    async def start_preview(self):
-        while True:
-            await self.capture_event.wait()
-            self.capture_event.clear()
-            cv.imshow('Live', self.current_capture.img)
-            if self.processed_event.is_set():
-                self.processed_event.clear()
-                cv.imshow('Last Image', self.last_img)
-            if cv.waitKey(1) == ord('q'):
-                break 
-        print("END prev LOOP")
+    def create_task(self):
+        return asyncio.create_task(self.start())
 
-    async def start(self, session_name):
-        os.makedirs(f'{self.outdir}/{session_name}')
+    async def start(self):
+        os.makedirs(f'{self.outdir}/{self.session_name}')
 
-        self.__initVideo()
+        self.__init_video()
 
-        tasks = [asyncio.get_running_loop().create_task(self.do_capture(session_name))]
-        if self.preview:
-            tasks.append(asyncio.get_running_loop().create_task(self.start_preview()))
-        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED) 
-        
-        for task in tasks:
-            task.cancel()
+        await self.start_capture()
 
-        self.__stopVideo()
+        self.__stop_video()
 
-    async def do_capture(self, session_name):
+    async def start_capture(self):
         time_first_start = time.time()
         i = 0
-        self.current_capture = TimeSpanGrabber(self, session_name, time_first_start + (i * self.time_span), i)
+        current_capture = TimeSpanGrabber(self, time_first_start + (i * self.time_span), i)
         last_capture = None
-        while True:
-            capture = asyncio.to_thread(self.current_capture.run)
+        logging.debug('Enter capture loop')
+        while not asyncio.current_task().cancelling():
+            capture = asyncio.to_thread(current_capture.run)
             
             # Running paralell now
-            next_capture = TimeSpanGrabber(self, session_name, time_first_start + ((i + 1) * self.time_span), i + 1)
+            next_capture = TimeSpanGrabber(self, time_first_start + ((i + 1) * self.time_span), i + 1)
 
             if last_capture != None:
                 img = last_capture.img
 
-                img = self.__stampImage(img, last_capture.metadata)
+                img = self.__stamp_image(img, last_capture.metadata)
 
                 self.last_img = img
-                self.processed_event.set()
+                self.hub.publish('image', img)
 
-                basename = self.__writeImageAndMetadata(img, last_capture.metadata)
+                basename = self.__write_image_and_metadata(img, last_capture.metadata)
                 print("Image taken", basename, last_capture.metadata)     
             
-            await capture
-
-            if self.current_capture.exit_after:
+            try:
+                await capture
+            except asyncio.CancelledError:
                 break
-            last_capture = self.current_capture
-            self.current_capture = next_capture
-            i += 1
-
-    def captureFrame(self):
+            
+            if current_capture.exit_after:
+                break
+            last_capture = current_capture
+            current_capture = next_capture
+            i += 1   
+ 
+    def capture_frame(self):
         if not self.video_capture:
             raise VideoException("Video is closed")
 
@@ -173,7 +152,7 @@ class Grabber:
             src = cv.flip(src, 1)
         return src
 
-    def __stampImage(self, img, metadata):
+    def __stamp_image(self, img, metadata):
         height, width = img.shape[:2]
         time_start = metadata.get('time_start')
         if self.stamp_options.get('time'):
@@ -189,7 +168,7 @@ class Grabber:
                     img = cv.putText(img, str((math.floor(time_start + ix) % 60)), (x + 3, height - 3), cv.FONT_HERSHEY_SIMPLEX, 0.3, STAMPS_COLOR, 1, cv.LINE_AA)    
         return img                             
 
-    def __writeIndexJson(self, metadata):
+    def __write_index_json(self, metadata):
         filename = f'{self.outdir}/index.json'
         try:
             with open(filename, 'r') as openfile:
@@ -202,26 +181,26 @@ class Grabber:
         with open(filename, 'w') as openfile:
             json.dump(index_data, openfile)
 
-    def __writeImageAndMetadata(self, img, metadata):
+    def __write_image_and_metadata(self, img, metadata):
         basename = f'{self.outdir}/{metadata["session_name"]}/img{metadata["index"]}'    
         cv.imwrite(f'{basename}.webp', img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality])
         with open(f'{basename}.json', "w") as outfile:
             json.dump(metadata, outfile, indent=4)
-        self.__writeIndexJson(metadata)
+        self.__write_index_json(metadata)
         return basename
 
-    def __initVideo(self):
+    def __init_video(self):
         self.video_capture = cv.VideoCapture(0)
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")
         
         # Detect frame size
-        src = self.captureFrame()
+        src = self.capture_frame()
 
         self.src_height, self.src_width = src.shape[:2]
         self.src_middle_left = (self.src_width // 2)
 
-    def __stopVideo(self):
+    def __stop_video(self):
         if self.video_capture:
             self.video_capture.release()
         cv.destroyAllWindows()
