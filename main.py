@@ -10,9 +10,15 @@ from hypercorn.config import Config
 import grabber
 
 async def start(args):
-    return await asyncio.gather(
-            startStaticWebserver(args),
-            startGrabber(args))
+    tasks = [create_task(startStaticWebserver(args)),
+            create_task(startGrabber(args))]
+    await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+    for task in tasks:
+        task.cancel()
+
+def create_task(awaitable):
+    return asyncio.get_running_loop().create_task(awaitable)
 
 async def startStaticWebserver(args):
     app = Quart(__name__)
@@ -41,7 +47,7 @@ async def startGrabber(args):
         stamp_time = not args.no_stamp_time,
         test_mode = args.test_mode,
         stamp_fps = args.stamp_fps)
-    return await asyncio.get_running_loop().run_in_executor(gr.start(session_name))
+    return await gr.start(session_name)
 
 parser = argparse.ArgumentParser(
                     prog='perp_finish_cam',
@@ -62,8 +68,5 @@ parser.add_argument('--test-mode', type = int, help = 'Create the given amount o
 parser.add_argument('--webp-quality', type = int, default = 90, help = 'Quality for webp compression (default: 90)') 
 
 args = parser.parse_args()
-
-#x = threading.Thread(target=startStaticWebserver, args=(args,))
-#x.start()
 
 asyncio.run(start(args))

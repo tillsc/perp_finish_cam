@@ -4,15 +4,28 @@ import time
 import math
 import os
 import json
-import threading
+import asyncio
+import concurrent.futures
+
+class Event_ts(asyncio.Event):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+
+    def set(self):
+        self._loop.call_soon_threadsafe(super().set)
+
+    def clear(self):
+        super().clear()
+        self._loop.call_soon_threadsafe(super().clear)
 
 class VideoException(Exception):
     "Exception raised on problems with video capture"
     pass
 
-class TimeSpanGrabberThread(threading.Thread):
+class TimeSpanGrabber():
     def __init__(self, grabber, session_name, time_start, index):
-        threading.Thread.__init__(self)
 
         self.grabber = grabber
         
@@ -54,6 +67,8 @@ class TimeSpanGrabberThread(threading.Thread):
 
             self.metadata['frame_count'] += 1  
             self.metadata['fps'] = self.metadata['frame_count'] / time_passed
+
+            self.grabber.capture_event.set()
               
         if self.metadata['fps'] > self.grabber.px_per_second:  
             print(f"Real FPS ({self.metadata['fps']}) allows higher resolution (>= {round(self.metadata['fps'])} px/sec - current is {self.grabber.px_per_second} px/sec)")
@@ -71,6 +86,10 @@ class Grabber:
     def __init__(self, outdir, time_span, px_per_second, preview, left_to_right, **kwargs):
         self.video_capture = False
 
+        self.current_capture = None
+        self.capture_event = Event_ts()
+        self.processed_event = Event_ts()
+
         self.outdir = outdir
         self.time_span = time_span
         self.px_per_second = px_per_second
@@ -84,50 +103,63 @@ class Grabber:
             'ticks': kwargs.get('stamp_ticks', True),
             'tick-texts': kwargs.get('stamp_tick_texts', True) 
         }
+        
+    async def start_preview(self):
+        while True:
+            await self.capture_event.wait()
+            self.capture_event.clear()
+            cv.imshow('Live', self.current_capture.img)
+            if self.processed_event.is_set():
+                self.processed_event.clear()
+                cv.imshow('Last Image', self.last_img)
+            if cv.waitKey(1) == ord('q'):
+                break 
+        print("END prev LOOP")
 
-    def start(self, session_name):
+    async def start(self, session_name):
         os.makedirs(f'{self.outdir}/{session_name}')
 
         self.__initVideo()
+
+        tasks = [asyncio.get_running_loop().create_task(self.do_capture(session_name))]
+        if self.preview:
+            tasks.append(asyncio.get_running_loop().create_task(self.start_preview()))
+        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED) 
         
-        time_first_start = time.time()
-        i = 0
-        thread = TimeSpanGrabberThread(self, session_name, time_first_start + (i * self.time_span), i)
-        last_thread = None
-        while True:
-            thread.start()
-            
-            # Running paralell now
-            next_thread = TimeSpanGrabberThread(self, session_name, time_first_start + ((i + 1) * self.time_span), i + 1)
-
-            if last_thread != None:
-                img = last_thread.img
-
-                img = self.__stampImage(img, last_thread.metadata)
-
-                if self.preview:
-                    cv.imshow('Last Image', img)
-            
-                basename = self.__writeImageAndMetadata(img, last_thread.metadata)
-                print("Image taken", basename, last_thread.metadata)
-
-            # Wait for thread to finish      
-            if self.preview:
-                while True:
-                    cv.imshow('Live', thread.img)
-                    if cv.waitKey(1) == ord('q'):
-                        exit(0) 
-                    if thread.done:
-                        break      
-            thread.join()
-
-            if thread.exit_after:
-                break
-            last_thread = thread
-            thread = next_thread
-            i += 1
+        for task in tasks:
+            task.cancel()
 
         self.__stopVideo()
+
+    async def do_capture(self, session_name):
+        time_first_start = time.time()
+        i = 0
+        self.current_capture = TimeSpanGrabber(self, session_name, time_first_start + (i * self.time_span), i)
+        last_capture = None
+        while True:
+            capture = asyncio.to_thread(self.current_capture.run)
+            
+            # Running paralell now
+            next_capture = TimeSpanGrabber(self, session_name, time_first_start + ((i + 1) * self.time_span), i + 1)
+
+            if last_capture != None:
+                img = last_capture.img
+
+                img = self.__stampImage(img, last_capture.metadata)
+
+                self.last_img = img
+                self.processed_event.set()
+
+                basename = self.__writeImageAndMetadata(img, last_capture.metadata)
+                print("Image taken", basename, last_capture.metadata)     
+            
+            await capture
+
+            if self.current_capture.exit_after:
+                break
+            last_capture = self.current_capture
+            self.current_capture = next_capture
+            i += 1
 
     def captureFrame(self):
         if not self.video_capture:
