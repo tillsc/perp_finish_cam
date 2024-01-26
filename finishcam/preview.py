@@ -11,7 +11,7 @@ def create_task(args, hub):
 async def start(args, hub):
     logging.debug('Enter preview loop')
     with finishcam.pubsub.Subscription(hub) as queue:
-        while not asyncio.current_task().cancelling():
+        while not asyncio.current_task().done():
             (msg, data) = await queue.get()
             logging.debug('Preview: %s', msg)
             match msg:

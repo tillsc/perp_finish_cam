@@ -112,7 +112,7 @@ class Grabber:
         current_capture = TimeSpanGrabber(self, time_first_start + (i * self.time_span), i)
         last_capture = None
         logging.debug('Enter capture loop')
-        while not asyncio.current_task().cancelling():
+        while not asyncio.current_task().done():
             capture = asyncio.to_thread(current_capture.run)
             
             # Running paralell now
