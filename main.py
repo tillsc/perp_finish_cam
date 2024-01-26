@@ -1,7 +1,47 @@
 import time
 import argparse
+import threading
+import asyncio
+
+from quart import Quart, send_from_directory
+from hypercorn.asyncio import serve
+from hypercorn.config import Config
 
 import grabber
+
+async def start(args):
+    return await asyncio.gather(
+            startStaticWebserver(args),
+            startGrabber(args))
+
+async def startStaticWebserver(args):
+    app = Quart(__name__)
+
+    @app.route('/data/<path:path>')
+    async def serve_data_file(path):
+        return await send_from_directory(args.outdir, path)
+
+    @app.route('/<path:path>')
+    async def serve_frontend_file(path):
+        return await send_from_directory('./frontend', path)
+
+    config = Config()
+    config.bind = ["localhost:5001"]
+    config.certfile = 'cert.pem'
+    config.keyfile = 'key.pem'
+    return await serve(app, config)
+
+async def startGrabber(args):
+    session_name = time.strftime("%Y%m%d-%H%M%S")
+
+    gr = grabber.Grabber(args.outdir, 
+        args.time_span, args.px_per_second, 
+        args.preview, args.left_to_right,
+        webp_quality = args.webp_quality,
+        stamp_time = not args.no_stamp_time,
+        test_mode = args.test_mode,
+        stamp_fps = args.stamp_fps)
+    return await asyncio.get_running_loop().run_in_executor(gr.start(session_name))
 
 parser = argparse.ArgumentParser(
                     prog='perp_finish_cam',
@@ -23,13 +63,7 @@ parser.add_argument('--webp-quality', type = int, default = 90, help = 'Quality 
 
 args = parser.parse_args()
 
-gr = grabber.Grabber(args.outdir, 
-    args.time_span, args.px_per_second, 
-    args.preview, args.left_to_right,
-    webp_quality = args.webp_quality,
-    stamp_time = not args.no_stamp_time,
-    test_mode = args.test_mode,
-    stamp_fps = args.stamp_fps)
+#x = threading.Thread(target=startStaticWebserver, args=(args,))
+#x.start()
 
-session_name = time.strftime("%Y%m%d-%H%M%S")
-gr.start(session_name)
+asyncio.run(start(args))
