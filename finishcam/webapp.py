@@ -3,11 +3,16 @@ from quart import Quart, render_template, websocket, send_from_directory
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 
+import numpy as np
+import cv2 as cv
 import json
 import asyncio
 import logging
 
+import finishcam.pubsub
+
 app = Quart(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 @app.route("/")
 async def home():
@@ -29,9 +34,20 @@ async def serve_frontend_file(path):
 
 @app.websocket("/ws")
 async def ws():
-    while asyncio.current_task().done():
-        await websocket.send("hello")
-        await websocket.send_json({"hello": "world"})
+    with finishcam.pubsub.Subscription(app.hub) as queue:
+        while not asyncio.current_task().done():
+            (msg, data) = await queue.get()
+            match msg:
+                case 'live_image':
+                    img_encode = cv.imencode('.webp', data, [cv.IMWRITE_WEBP_QUALITY, 30])[1] 
+                    data_encode = np.array(img_encode) 
+                    byte_encode = data_encode.tobytes() 
+
+                    await websocket.send(byte_encode)
+
+                    # Throw away everything happening since we started encoding and sending
+                    while not queue.empty():
+                        queue.get_nowait()
 
 def create_task(args, hub):
     return asyncio.create_task(start(args, hub))
