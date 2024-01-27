@@ -9,7 +9,10 @@ class Hub():
     def publish(self, message, data = None):
         logging.debug('New Message: %s', message)
         for queue in self.subscriptions:
-            self._loop.call_soon_threadsafe(queue.put_nowait, (message, data))
+            queue.put_nowait((message, data))
+
+    def publish_threadsafe(self, message, data = None):
+        self._loop.call_soon_threadsafe(self.publish, message, data)
 
 class Subscription():
     def __init__(self, hub):

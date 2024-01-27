@@ -58,7 +58,7 @@ class TimeSpanGrabber():
             self.metadata['frame_count'] += 1  
             self.metadata['fps'] = self.metadata['frame_count'] / time_passed
 
-            self.grabber.hub.publish('live_image', self.img)
+            self.grabber.hub.publish_threadsafe('live_image', self.img)
               
         if self.metadata['fps'] > self.grabber.px_per_second:  
             print(f"Real FPS ({self.metadata['fps']}) allows higher resolution (>= {round(self.metadata['fps'])} px/sec - current is {self.grabber.px_per_second} px/sec)")
