@@ -1,22 +1,10 @@
-Hello! 
+<script type="module" src="measuring.js"></script>
+<script type="module" src="live.js"></script>
 
 <h2>Live Image</h2>
-<img id="live-image">
+<perp-finishcam-live>
+    <img id="live-image">
+</perp-finishcam-live>
 
 <h2>Last Image</h2>
 <img src="{{last_image_url}}">
-
-<script>
-    const loc = window.location;
-    const wsUri = (loc.protocol === "https:" ? "wss" : "ws") + "://" + loc.host + "/ws";
-    const ws = new WebSocket(wsUri, []);
-    ws.binaryType = "arraybuffer";
-
-    const img = document.getElementById('live-image');
-
-    ws.onmessage = (event) => {
-        const dataUri = "data:image/webp;base64," + btoa(String.fromCharCode(...new Uint8Array(event.data)));;
-        img.src = dataUri;
-    };
-
-</script>
