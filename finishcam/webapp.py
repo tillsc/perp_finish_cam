@@ -23,6 +23,12 @@ async def home():
         session_name=app.session_name, last_image_url=last_image_url
     )
 
+@app.route("/sessions/<string:session_name>")
+async def session(session_name):
+    return await render_template(
+        "session.html.jinja", 
+        session_name=session_name
+    )
 
 @app.route("/data/<path:path>")
 async def serve_data_file(path):

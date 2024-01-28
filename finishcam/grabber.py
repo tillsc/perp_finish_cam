@@ -11,11 +11,11 @@ import logging
 
 def create_task(
     hub, session_name, outdir,
-    time_span, px_per_second, preview, left_to_right, **kwargs
+    time_span, px_per_second, left_to_right, **kwargs
     ):
     gr = Grabber(
         hub, session_name, outdir,
-        time_span, px_per_second, preview, left_to_right, **kwargs,
+        time_span, px_per_second, left_to_right, **kwargs,
     )
     return asyncio.create_task(gr.start())
 
@@ -89,7 +89,7 @@ STAMPS_COLOR = (100, 255, 100)
 class Grabber:
     def __init__(
         self, hub, session_name, outdir,
-        time_span, px_per_second, preview, left_to_right, **kwargs,
+        time_span, px_per_second, left_to_right, **kwargs,
     ):
         self.video_capture = False
 
@@ -98,8 +98,7 @@ class Grabber:
         self.outdir = outdir
         self.time_span = time_span
         self.px_per_second = px_per_second
-        self.preview = preview
-        self.flip_input = not left_to_right
+        self.left_to_right = left_to_right
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
         self.stamp_options = {
@@ -119,10 +118,10 @@ class Grabber:
         self.__stop_video()
 
     async def start_capture(self):
-        time_first_start = time.time()
+        self.time_first_start = time.time()
         i = 0
         current_capture = TimeSpanGrabber(
-            self, time_first_start + (i * self.time_span), i
+            self, self.time_first_start + (i * self.time_span), i
         )
         last_capture = None
         logging.debug("Enter capture loop")
@@ -131,7 +130,7 @@ class Grabber:
 
             # Running paralell now
             next_capture = TimeSpanGrabber(
-                self, time_first_start + ((i + 1) * self.time_span), i + 1
+                self, self.time_first_start + ((i + 1) * self.time_span), i + 1
             )
 
             if last_capture != None:
@@ -164,7 +163,7 @@ class Grabber:
         if not ret:
             raise VideoException("Can't receive frame")
 
-        if self.flip_input:
+        if not self.left_to_right:
             src = cv.flip(src, 1)
         return src
 
@@ -192,28 +191,42 @@ class Grabber:
                     )
         return img
 
-    def __write_index_json(self, metadata):
+    def __write_index_json(self, last_index):
         filename = f"{self.outdir}/index.json"
         try:
             with open(filename, "r") as openfile:
                 index_data = json.load(openfile)
         except FileNotFoundError:
             index_data = {}
-        data = index_data.get(metadata["session_name"], {"time_start": metadata["time_start"]})
-        data["last_index"] = metadata["index"]
-        index_data[metadata["session_name"]] = data
+        index_data[self.session_name] = self.__session_metadata(last_index)
         with open(filename, "w") as openfile:
             json.dump(index_data, openfile)
 
     def __write_image_and_metadata(self, img, metadata):
-        basename = f'{self.outdir}/{metadata["session_name"]}/img{metadata["index"]}'
+        basename = f'{self.outdir}/{self.session_name}/img{metadata["index"]}'
         cv.imwrite(
             f"{basename}.webp", img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality]
         )
         with open(f"{basename}.json", "w") as outfile:
             json.dump(metadata, outfile, indent=4)
-        self.__write_index_json(metadata)
+        self.__write_index_json(metadata["index"])
+        
+        filename = f'{self.outdir}/{self.session_name}/index.json'
+        with open(filename, "w") as openfile:
+            json.dump(self.__session_metadata(metadata["index"]), openfile)
+
         return basename
+
+    def __session_metadata(self, last_index):
+        return {
+                "session_name": self.session_name,
+                "time_start": self.time_first_start,
+                "time_span": self.time_span,
+                "left_to_right": self.left_to_right,
+                "px_per_second": self.px_per_second,
+                "last_index": last_index
+        }
+            
 
     def __init_video(self):
         self.video_capture = cv.VideoCapture(0)

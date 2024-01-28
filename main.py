@@ -21,7 +21,7 @@ async def start(args):
     if not args.no_capture:
         tasks.append(finishcam.grabber.create_task(
             hub, session_name,args.outdir,
-            args.time_span, args.px_per_second, args.preview, args.left_to_right,
+            args.time_span, args.px_per_second, args.left_to_right,
             webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             debug=args.debug

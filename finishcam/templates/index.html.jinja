@@ -1,10 +1,8 @@
-<script type="module" src="measuring.js"></script>
 <script type="module" src="live.js"></script>
+
+<a href="{{url_for('session', session_name=session_name)}}">To current session</a>
 
 <h2>Live Image</h2>
 <perp-finishcam-live>
-    <img id="live-image">
+    <img src="{{last_image_url}}">
 </perp-finishcam-live>
-
-<h2>Last Image</h2>
-<img src="{{last_image_url}}">
