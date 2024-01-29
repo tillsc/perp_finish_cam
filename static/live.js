@@ -2,6 +2,11 @@ class PerpFinishcamLiveElement extends HTMLElement {
 
     connectedCallback() {
         this.img = this.querySelector("img");
+        if (!this.img) {
+            this.img = document.createElement('img');
+            this.append(this.img);
+        }
+        this.img.style.height = '100%';
 
         const loc = window.location;
         const wsUri = (loc.protocol === "https:" ? "wss" : "ws") + "://" + loc.host + "/ws/live";

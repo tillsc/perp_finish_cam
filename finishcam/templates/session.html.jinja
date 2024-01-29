@@ -1,4 +1,9 @@
-<script type="module" src="measuring.js"></script>
+{% extends "layout.html.jinja" %}
+{% block head %}
+<script type="module" src="{{url_for('serve_frontend_file', path='measuring.js')}}"></script>
+{% endblock %}
 
-<perp-finishcam-measurement session="{{session_name}}">
-</perp-finishcam-live>
+{% block content %}
+<perp-finishcam-measuring href="{{url_for('serve_data_file', path=session_name)}}" style="height: 100vh">
+</perp-finishcam-measuring>
+{% endblock %}

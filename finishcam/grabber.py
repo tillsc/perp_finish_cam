@@ -124,6 +124,8 @@ class Grabber:
             self, self.time_first_start + (i * self.time_span), i
         )
         last_capture = None
+        self.__write_metadata_jsons(None)
+        
         logging.debug("Enter capture loop")
         while not asyncio.current_task().done():
             capture = asyncio.to_thread(current_capture.run)
@@ -191,7 +193,13 @@ class Grabber:
                     )
         return img
 
-    def __write_index_json(self, last_index):
+    def __write_metadata_jsons(self, last_index):
+        # Session JSON
+        filename = f'{self.outdir}/{self.session_name}/index.json'
+        with open(filename, "w") as openfile:
+            json.dump(self.__session_metadata(last_index), openfile)
+
+        # Global JSON
         filename = f"{self.outdir}/index.json"
         try:
             with open(filename, "r") as openfile:
@@ -202,6 +210,7 @@ class Grabber:
         with open(filename, "w") as openfile:
             json.dump(index_data, openfile)
 
+
     def __write_image_and_metadata(self, img, metadata):
         basename = f'{self.outdir}/{self.session_name}/img{metadata["index"]}'
         cv.imwrite(
@@ -209,11 +218,7 @@ class Grabber:
         )
         with open(f"{basename}.json", "w") as outfile:
             json.dump(metadata, outfile, indent=4)
-        self.__write_index_json(metadata["index"])
-        
-        filename = f'{self.outdir}/{self.session_name}/index.json'
-        with open(filename, "w") as openfile:
-            json.dump(self.__session_metadata(metadata["index"]), openfile)
+        self.__write_metadata_jsons(metadata["index"])
 
         return basename
 

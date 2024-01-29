@@ -13,6 +13,13 @@ import finishcam.pubsub
 
 app = Quart(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def add_header(r):
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    r.headers["Pragma"] = "no-cache"
+    return r
 
 
 @app.route("/")
@@ -57,6 +64,7 @@ async def ws_live():
 
                     await websocket.send(byte_encode)
 
+                    await asyncio.sleep(.1)
                     # Throw away everything happening since we started encoding and sending
                     while not queue.empty():
                         queue.get_nowait()
