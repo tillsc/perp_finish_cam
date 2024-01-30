@@ -182,13 +182,12 @@ class Grabber:
             )
         if self.stamp_options.get("ticks"):
             for ix in range(-1, self.time_span):
-                x = ix * (width // self.time_span) + 1
                 x = round(
-                    (ix + (time_start - math.floor(time_start))) * self.px_per_second
+                    (ix + (1 - (time_start - math.floor(time_start)))) * self.px_per_second
                 )
                 img = cv.line(img, (x, height - 10), (x, height), STAMPS_COLOR, 1)
                 if self.stamp_options.get("tick-texts"):
-                    img = cv.putText(img, str((math.floor(time_start + ix) % 60)), (x + 3, height - 3),
+                    img = cv.putText(img, str((math.floor(time_start + 1 + ix) % 60)), (x + 3, height - 3),
                         cv.FONT_HERSHEY_SIMPLEX, 0.3, STAMPS_COLOR, 1, cv.LINE_AA
                     )
         return img
