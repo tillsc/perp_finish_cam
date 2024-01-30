@@ -5,7 +5,8 @@ class PerpFinishcamMeasuringElement extends LitElement {
     static properties = {
         href: { type: String },
         metadata: { tpye: Object },
-        error: { type: String }
+        error: { type: String },
+        x: { type: Number }
       };
 
       static styles = css`
@@ -27,6 +28,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
             overflow-y: hidden;
             flex: 1;
             display: flex;
+            gap: 1rem;
             justify-content: start;
         }
 
@@ -86,14 +88,15 @@ class PerpFinishcamMeasuringElement extends LitElement {
         this.error = msg;
     }
 
-    timeStart() {
-        return this.metadata && new Date(this.metadata.time_start * 1000);
+    timeStart(index=0) {
+        if (this.metadata && this.metadata.time_start && this.metadata.time_span) {
+            const ts = this.metadata.time_start + (this.metadata.time_span * index);
+            return new Date(ts * 1000);
+        }
     }
 
     timeEnd() {
-        if (this.metadata && this.metadata.time_start && this.metadata.time_span) {
-          return new Date((this.metadata.time_start + (this.metadata.time_span * (this.imageCount()))) * 1000);
-        }
+        return this.timeStart(this.imageCount());
     }
 
     expectedNext() {
@@ -132,19 +135,39 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
 
+    _handleMouseover(event) {
+        if (event.target?.timeStart) {
+          this.x = new Date(event.target.timeStart.getTime() + (1000 * this.metadata.time_span * (event.offsetX - 1) / event.target.width));
+          this.mouseX = event.offsetX;
+          this.mousePerc = this.mouseX / event.target.width;
+        }
+        else if (this.x) {
+            this.x = null;
+        }
+    }
+
+    _zpad(value, digits = 2) {
+        return value.toString().padStart(digits, '0')
+    }
+
+    _formatTime(date) {
+        if (date) {
+            return `${this._zpad(date.getHours())}:${this._zpad(date.getMinutes())}:${this._zpad(date.getSeconds())}.${this._zpad(Math.round(date.getMilliseconds() / 10))}`
+        }
+    }
+
     renderWorkspace() {
         return html`
         <div class="wrapper">
-          <div class="images">
-            ${[...Array(this.imageCount()).keys()].map(index =>
-              html`<img src="${this.buildUri(`img${index}.webp`)}">`
-            )}
+          <div class="images" @mouseover="${this._handleMouseover}" @click="${this._handleMouseover}">
+            ${[...Array(this.imageCount()).keys()].map(index => this.renderImg(index))}
             ${this.renderLive()}
           </div>
           <div class="hud">
           <dl>
-            <dt>Start:</dt><dd>${this.timeStart()}</dd>
-            <dt>End:</dt><dd>${this.timeEnd()}</dd>
+            <dt>X:</dt><dd>${this._formatTime(this.x)}</dd>
+            <dt>Start:</dt><dd>${this._formatTime(this.timeStart())}</dd>
+            <dt>End:</dt><dd>${this._formatTime(this.timeEnd())}</dd>
             <dt>Next in:</dt><dd>${this.expectedNext()} ${this.isLive() ? " (Live!)" : ""}</dd>
           </dl>
           <code>${JSON.stringify(this.metadata)}</code>
@@ -153,12 +176,19 @@ class PerpFinishcamMeasuringElement extends LitElement {
         `
     }
 
+    renderImg(index) {
+        return html`<img src="${this.buildUri(`img${index}.webp`)}" .timeStart=${this.timeStart(index)}>`;
+    }
+
     renderLive() {
         if (this.isLive()) {
-            const dummyImg = (this.expectedNext() < new Date()) ?
-              html`<img src="${this.buildUri(`img${this.imageCount()}.webp`)}">` :
-              '';
-            return html`${dummyImg}<perp-finishcam-live></perp-finishcam-live>`
+            let liveIndex = this.imageCount();
+            const dummyImg = '';
+            if (this.expectedNext() < new Date()) {
+              this.renderImg(liveIndex);
+              liveIndex++;
+            }
+            return html`${dummyImg}<perp-finishcam-live .timeStart=${this.timeStart(liveIndex)}></perp-finishcam-live>`;
         }
     }
 }
