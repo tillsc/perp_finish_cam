@@ -51,18 +51,26 @@ async def serve_frontend_file(path):
 
 @app.websocket("/ws/live")
 async def ws_live():
+    last_index = None
     with finishcam.pubsub.Subscription(app.hub) as queue:
         while not asyncio.current_task().done():
-            (msg, data) = await queue.get()
+            (msg, metadata, data) = await queue.get()
             match msg:
                 case "live_image":
-                    img_encode = cv.imencode(
+                    fut = None
+                    if last_index != metadata['index']:
+                        json_bytes = bytearray(json.dumps(metadata), 'utf-8')
+                        fut = websocket.send(np.insert(json_bytes, 0, 1))
+                        last_index = metadata['index']
+                    
+                    retval, buf	= cv.imencode(
                         ".webp", data, [cv.IMWRITE_WEBP_QUALITY, 30]
-                    )[1]
-                    data_encode = np.array(img_encode)
-                    byte_encode = data_encode.tobytes()
+                    )
 
-                    await websocket.send(byte_encode)
+                    if fut != None:
+                        await fut
+                
+                    await websocket.send(np.insert(buf, 0, 0))
 
                     await asyncio.sleep(.1)
                     # Throw away everything happening since we started encoding and sending

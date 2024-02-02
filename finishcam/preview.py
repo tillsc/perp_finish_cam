@@ -14,7 +14,7 @@ async def start(hub):
     logging.debug("Enter preview loop")
     with finishcam.pubsub.Subscription(hub) as queue:
         while not asyncio.current_task().done():
-            (msg, data) = await queue.get()
+            (msg, metadata, data) = await queue.get()
             logging.debug("Preview: %s", msg)
             match msg:
                 case "live_image":

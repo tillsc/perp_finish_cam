@@ -7,13 +7,13 @@ class Hub:
         self.subscriptions = set()
         self._loop = asyncio.get_running_loop()
 
-    def publish(self, message, data=None):
+    def publish(self, message, metadata = {}, data=None):
         logging.debug("New Message: %s", message)
         for queue in self.subscriptions:
-            queue.put_nowait((message, data))
+            queue.put_nowait((message, metadata, data))
 
-    def publish_threadsafe(self, message, data=None):
-        self._loop.call_soon_threadsafe(self.publish, message, data)
+    def publish_threadsafe(self, message, metadata = {}, data=None):
+        self._loop.call_soon_threadsafe(self.publish, message, metadata, data)
 
 
 class Subscription:

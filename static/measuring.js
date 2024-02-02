@@ -28,8 +28,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
             overflow-y: hidden;
             flex: 1;
             display: flex;
-            gap: 1rem;
             justify-content: start;
+        }
+
+        perp-finishcam-live {
+            border: red;
         }
 
         .images img {
@@ -56,7 +59,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
         return new URL(relativePath, base).href
     }
 
-    fetchAgainAt(date, offset = 500) {
+    fetchAgainAt(date, offset = 2500) {
         let t = date - new Date();
         t = Math.max(t, 0);
         console.log("fetch next time in", t);
@@ -111,7 +114,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
     
     isLive() {
-        return (this.expectedNext() - new Date() > -1000);
+        return (this.expectedNext() - new Date() > -3000);
     }
 
     render() {
@@ -182,13 +185,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     renderLive() {
         if (this.isLive()) {
-            let liveIndex = this.imageCount();
-            const dummyImg = '';
-            if (this.expectedNext() < new Date()) {
-              this.renderImg(liveIndex);
-              liveIndex++;
-            }
-            return html`${dummyImg}<perp-finishcam-live .timeStart=${this.timeStart(liveIndex)}></perp-finishcam-live>`;
+            return html`<perp-finishcam-live .timeStart=${this.timeStart(this.imageCount())} for-index="${this.imageCount()}"></perp-finishcam-live>`;
         }
     }
 }

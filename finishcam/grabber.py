@@ -35,6 +35,7 @@ class TimeSpanGrabber:
         self.metadata = {
             "session_name": self.grabber.session_name,
             "time_start": time_start,
+            "time_span": self.grabber.time_span,
             "index": index,
             "frame_count": 0,
             "fps": 0,
@@ -71,7 +72,7 @@ class TimeSpanGrabber:
             self.metadata["frame_count"] += 1
             self.metadata["fps"] = self.metadata["frame_count"] / time_passed
 
-            self.grabber.hub.publish_threadsafe("live_image", self.img)
+            self.grabber.hub.publish_threadsafe("live_image", self.metadata, self.img)
 
         if self.metadata["fps"] > self.grabber.px_per_second:
             print(f"Real FPS ({self.metadata['fps']}) allows higher resolution (>= {round(self.metadata['fps'])} px/sec - current is {self.grabber.px_per_second} px/sec)")
@@ -141,7 +142,7 @@ class Grabber:
                 img = self.__stamp_image(img, last_capture.metadata)
 
                 self.last_img = img
-                self.hub.publish("image", img)
+                self.hub.publish("image", last_capture.metadata, img)
 
                 basename = self.__write_image_and_metadata(img, last_capture.metadata)
                 print("Image taken", basename, last_capture.metadata)
