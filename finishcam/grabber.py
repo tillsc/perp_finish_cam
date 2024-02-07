@@ -234,7 +234,7 @@ class Grabber:
             
 
     def __init_video(self):
-        self.video_capture = cv.VideoCapture(0)
+        self.video_capture = cv.VideoCapture(cv.CAP_ANY)
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")
 
