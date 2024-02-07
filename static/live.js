@@ -72,7 +72,6 @@ class PerpFinishcamLiveElement extends HTMLElement {
             img.timeStart = this.timeStartHistory[index];
         }
         for (let index = (to - from + 1); index < imgs.length; index++) {
-            console.log(imgs.length, 'del', index)
           imgs[index].remove();  
         }
     }
