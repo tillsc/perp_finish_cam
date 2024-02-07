@@ -4,9 +4,11 @@ import './live.js';
 class PerpFinishcamMeasuringElement extends LitElement {
     static properties = {
         href: { type: String },
-        metadata: { tpye: Object },
-        error: { type: String },
-        x: { type: Number }
+
+        // Internal properties
+        _metadata: { tpye: Object, state: true },
+        _error: { type: String, state: true },
+        _x: { type: Number, state: true }
       };
 
       static styles = css`
@@ -59,11 +61,10 @@ class PerpFinishcamMeasuringElement extends LitElement {
         return new URL(relativePath, base).href
     }
 
-    fetchAgainAt(date, offset = 2500) {
+    fetchAgainAt(date, offset = 500) {
         let t = date - new Date();
         t = Math.max(t, 0);
-        console.log("fetch next time in", t);
-        this.requestUpdateTimeout = setTimeout(() => this.requestUpdate(), t);
+        console.log("fetch next time in", t, `+${offset} ms`);
         this.fetchAgainTimeout = setTimeout(() => this.fetchMetadata(), t + offset);
     }
 
@@ -72,9 +73,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
         const response = await fetch(uri);
         if (response.ok) {
             const newMetadata =  await response.json();
-            if (!this.metadata || this.metadata.last_index != newMetadata.last_index) {
-                this.error = undefined;
-                this.metadata = newMetadata;
+            if (!this._metadata || this._metadata.last_index != newMetadata.last_index) {
+                this._error = undefined;
+                this._metadata = newMetadata;
                 this.requestUpdate();
             }
             if (this.isLive()) {
@@ -88,12 +89,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     fatalError(msg) {
-        this.error = msg;
+        this._error = msg;
     }
 
     timeStart(index=0) {
-        if (this.metadata && this.metadata.time_start && this.metadata.time_span) {
-            const ts = this.metadata.time_start + (this.metadata.time_span * index);
+        if (this._metadata && this._metadata.time_start && this._metadata.time_span) {
+            const ts = this._metadata.time_start + (this._metadata.time_span * index);
             return new Date(ts * 1000);
         }
     }
@@ -104,8 +105,8 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     expectedNext() {
         let expectedNext = this.timeEnd();
-        if (expectedNext && this.metadata.time_span) {
-          expectedNext.setSeconds(expectedNext.getSeconds() + this.metadata.time_span);
+        if (expectedNext && this._metadata.time_span) {
+          expectedNext.setSeconds(expectedNext.getSeconds() + this._metadata.time_span);
         }
         else {
             expectedNext = new Date();
@@ -118,10 +119,10 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     render() {
-        if (this.error) {
-            return html`<div class="alert alert-danger" role="alert">Error: ${this.error}</div>`
+        if (this._error) {
+            return html`<div class="alert alert-danger" role="alert">Error: ${this._error}</div>`
         }
-        if (this.metadata) {
+        if (this._metadata) {
             return this.renderWorkspace()
         }
         else {
@@ -130,8 +131,8 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     imageCount() {
-        if (this.metadata && this.metadata.last_index !== undefined && this.metadata.last_index != null) {
-            return this.metadata.last_index + 1;
+        if (this._metadata && this._metadata.last_index !== undefined && this._metadata.last_index != null) {
+            return this._metadata.last_index + 1;
         }
         else {
             return 0;
@@ -140,12 +141,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     _handleMouseover(event) {
         if (event.target?.timeStart) {
-          this.x = new Date(event.target.timeStart.getTime() + (1000 * this.metadata.time_span * (event.offsetX - 1) / event.target.width));
+          this._x = new Date(event.target.timeStart.getTime() + (1000 * this._metadata.time_span * (event.offsetX - 1) / event.target.width));
           this.mouseX = event.offsetX;
           this.mousePerc = this.mouseX / event.target.width;
         }
-        else if (this.x) {
-            this.x = null;
+        else if (this._x) {
+            this._x = null;
         }
     }
 
@@ -168,12 +169,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
           </div>
           <div class="hud">
           <dl>
-            <dt>X:</dt><dd>${this._formatTime(this.x)}</dd>
+            <dt>X:</dt><dd>${this._formatTime(this._x)}</dd>
             <dt>Start:</dt><dd>${this._formatTime(this.timeStart())}</dd>
             <dt>End:</dt><dd>${this._formatTime(this.timeEnd())}</dd>
             <dt>Next in:</dt><dd>${this.expectedNext()} ${this.isLive() ? " (Live!)" : ""}</dd>
           </dl>
-          <code>${JSON.stringify(this.metadata)}</code>
+          <code>${JSON.stringify(this._metadata)}</code>
           </hud>
         </div>
         `
