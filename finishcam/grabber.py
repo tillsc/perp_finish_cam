@@ -74,8 +74,10 @@ class TimeSpanGrabber:
 
             self.grabber.hub.publish_threadsafe(live_image=self.img, live_raw_image=src, live_metadata=self.metadata)
 
-        if self.metadata["fps"] > self.grabber.fps:
-            print(f"Real FPS ({self.metadata['fps']}) allows higher fps rate (>= {round(self.metadata['fps'])} pictures/sec - current is {self.grabber.fps} pictures/sec)")
+        if self.metadata["fps"] > self.grabber.fps * 1.10:
+            print(f"Real FPS ({self.metadata['fps']} f/s) allows higher requested FPS (current is {self.grabber.fps} f/s)")
+        if self.metadata["fps"] < self.grabber.fps * 0.90:
+            print(f"Real FPS ({self.metadata['fps']} f/s) is much lower then requested FPS ({self.grabber.fps} f/s)")
 
         self.done = True
 
@@ -103,6 +105,7 @@ class Grabber:
         self.left_to_right = left_to_right
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
+        self.video_capture_index = kwargs.get("video_capture_index", 0)
         self.stamp_options = {
             "time": kwargs.get("stamp_time", True),
             "fps": kwargs.get("stamp_fps", False),
@@ -238,7 +241,7 @@ class Grabber:
             
 
     def __init_video(self):
-        self.video_capture = cv.VideoCapture(cv.CAP_ANY)
+        self.video_capture = cv.VideoCapture(self.video_capture_index, cv.CAP_ANY)
         self.video_capture.set(cv.CAP_PROP_FPS, self.fps)
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")

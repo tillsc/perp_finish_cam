@@ -24,6 +24,7 @@ async def start(args):
             args.time_span, args.fps, args.slot_width, args.left_to_right,
             webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
+            video_capture_index=args.video_capture_index,
             debug=args.debug
         ))
         if args.preview:
@@ -64,6 +65,10 @@ parser.add_argument(
 parser.add_argument(
     "-w", "--slot-width", type=int, default=2,
     help="Default slot width when camera provides requested FPS (default: 2px)",
+)
+parser.add_argument(
+    "-i", "--video-capture-index", type=int, default=0,
+    help="Index of the system camera to use (default: 0)",
 )
 parser.add_argument(
     "--no-stamp-time", action="store_true",
