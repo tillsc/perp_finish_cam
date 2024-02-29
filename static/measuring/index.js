@@ -1,9 +1,10 @@
 import { LitElement, html, ref, createRef } from '../lit.js';
 
-import { formatTime, addSeconds } from './time.js';
 import componentCss from './styles.js';
 import MetadataService from './metadata.js';
 import './canvas.js';
+
+import { formatTime, addSeconds } from '../time.js';
 
 import '../live.js';
 
