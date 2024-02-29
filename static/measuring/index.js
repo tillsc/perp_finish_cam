@@ -84,7 +84,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     renderLive() {
         if (this.metadataService.isLive()) {
-            return html`<perp-finishcam-live .timeStart=${this.metadataService.timeStart(this.metadataService.imageCount())} for-index="${this.metadataService.imageCount()}"></perp-finishcam-live>`;
+            return html`<perp-finishcam-live cut .timeStart=${this.metadataService.timeStart(this.metadataService.imageCount())} for-index="${this.metadataService.imageCount()}"></perp-finishcam-live>`;
         }
     }
 

@@ -1,16 +1,19 @@
+import {addSeconds} from './time.js'
+
 class PerpFinishcamLiveElement extends HTMLElement {
 
-    static observedAttributes = ['for-index'];
+    static observedAttributes = ['for-index', 'cut'];
 
     constructor() {
         super();
         this.objectURLHistory = [];
         this.timeStartHistory = [];
         this.currentIndex = -1;
+        this.timeDelta = 0; //ms difference between date of metadata retrival and timeStart+timeSpan in metadata
     }
 
     connectedCallback() {
-        this.forIndex = parseInt(this.getAttribute('for-index'));
+        this.parseAttributes();
         this.timeStartHistory[this.currentIndex] = this.timeStart;
 
         const loc = window.location;
@@ -21,11 +24,14 @@ class PerpFinishcamLiveElement extends HTMLElement {
     }
 
     attributeChangedCallback(name, _oldValue, newValue) {
-        if (name == 'for-index') {
-            this.forIndex = parseInt(newValue);
-            this.render();
-        }
+        this.parseAttributes();
+        this.render();
       }
+
+    parseAttributes() {
+        this.forIndex = parseInt(this.getAttribute('for-index'));
+        this.cutImage = this.hasAttribute('cut');
+    }
 
     disconnectedCallback() {
         this.objectURLHistory.forEach((historyElement) => {
@@ -48,8 +54,13 @@ class PerpFinishcamLiveElement extends HTMLElement {
         }
         else if (type == 1) {
             const metadata = JSON.parse(new TextDecoder().decode(bytes.slice(1)));
+            this.currentSession = metadata.session_name;
+            const now = new Date();
             this.currentIndex = metadata.index;
-            this.timeStartHistory[this.currentIndex] = new Date(metadata.time_start * 1000);
+            const timeStart = new Date(metadata.time_start * 1000);
+            this.timeStartHistory[this.currentIndex] = timeStart;
+            this.timeDelta = now.getTime() - timeStart.getTime();
+            this.timeSpan = metadata.time_span;
         }
         this.render();
     }
@@ -67,8 +78,23 @@ class PerpFinishcamLiveElement extends HTMLElement {
                 img = document.createElement('img');
                 this.append(img);                
             }
-            img.src = this.objectURLHistory[index];
-            img.style.height = '100%';
+            if (this.objectURLHistory[index]) {
+              img.src = this.objectURLHistory[index];
+            }
+            else {  
+              img.src = this.currentSession ? `/data/${this.currentSession}/img${index}.webp` : '#';
+            }
+            img.style.objectFit = 'cover';
+            img.style.objectPosition = 'top left';
+            img.style.height = img.naturalHeight + 'px';
+            if (this.cutImage && index == to) {
+                const now = new Date();
+                const progress = (now.getTime() - this.timeStartHistory[this.currentIndex].getTime()) / (this.timeSpan * 1000.0);
+                img.style.width = Math.round(progress * img.naturalWidth) + 'px';
+            }
+            else {
+                img.style.width = 'auto';
+            }
             img.timeStart = this.timeStartHistory[index];
         }
         for (let index = (to - from + 1); index < imgs.length; index++) {
