@@ -21,7 +21,7 @@ async def start(args):
     if not args.no_capture:
         tasks.append(finishcam.grabber.create_task(
             hub, session_name,args.outdir,
-            args.time_span, args.px_per_second, args.left_to_right,
+            args.time_span, args.fps, args.slot_width, args.left_to_right,
             webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             debug=args.debug
@@ -58,8 +58,12 @@ parser.add_argument(
     help="Time in seconds per destination image (default: 10 seconds)",
 )
 parser.add_argument(
-    "-x", "--px-per-second", type=int, default=2 * 29,
-    help="Width on one second in destination image (default: 2px * 29frames/seconds = 58px/second)",
+    "-f", "--fps", type=int, default=90,
+    help="Frames per second to request from camera (default: 90pictures/second)",
+)
+parser.add_argument(
+    "-w", "--slot-width", type=int, default=2,
+    help="Default slot width when camera provides requested FPS (default: 2px)",
 )
 parser.add_argument(
     "--no-stamp-time", action="store_true",

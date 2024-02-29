@@ -52,30 +52,28 @@ async def serve_frontend_file(path):
 @app.websocket("/ws/live")
 async def ws_live():
     last_index = None
-    with finishcam.pubsub.Subscription(app.hub) as queue:
+    with finishcam.pubsub.Subscription(app.hub) as event:
         while not asyncio.current_task().done():
-            (msg, metadata, data) = await queue.get()
-            match msg:
-                case "live_image":
-                    fut = None
-                    if last_index != metadata['index']:
-                        json_bytes = bytearray(json.dumps(metadata), 'utf-8')
-                        fut = websocket.send(np.insert(json_bytes, 0, 1))
-                        last_index = metadata['index']
-                    
-                    retval, buf	= cv.imencode(
-                        ".webp", data, [cv.IMWRITE_WEBP_QUALITY, 30]
-                    )
-
-                    if fut != None:
-                        await fut
+            await event.wait()
+            if "live_image" in app.hub.data:
+                fut = None
+                metadata = app.hub.data["live_metadata"]
+                if last_index != metadata['index']:
+                    json_bytes = bytearray(json.dumps(metadata), 'utf-8')
+                    fut = websocket.send(np.insert(json_bytes, 0, 1))
+                    last_index = metadata['index']
                 
-                    await websocket.send(np.insert(buf, 0, 0))
+                retval, buf	= await asyncio.to_thread(cv.imencode, 
+                    ".webp", app.hub.data["live_image"], [cv.IMWRITE_WEBP_QUALITY, 30]
+                )
 
-                    await asyncio.sleep(.1)
-                    # Throw away everything happening since we started encoding and sending
-                    while not queue.empty():
-                        queue.get_nowait()
+                if fut != None:
+                    await fut
+            
+                await websocket.send(np.insert(buf, 0, 0))
+
+            await asyncio.sleep(.1)               
+            event.clear()
 
 
 def create_task(hub, session_name, outdir):

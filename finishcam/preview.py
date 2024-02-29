@@ -12,16 +12,14 @@ def create_task(hub):
 
 async def start(hub):
     logging.debug("Enter preview loop")
-    with finishcam.pubsub.Subscription(hub) as queue:
+    with finishcam.pubsub.Subscription(hub) as event:
         while not asyncio.current_task().done():
-            (msg, metadata, data) = await queue.get()
-            logging.debug("Preview: %s", msg)
-            match msg:
-                case "live_image":
-                    cv.imshow("Live", data)
-                case "image":
-                    cv.imshow("Last image", data)
-                case "shutdown":
-                    return
-            if cv.waitKey(1) == ord("q"):
+            await event.wait()
+            for (field_name, window_name) in {"live_raw_image": "Raw image", "live_image": "Live image", "image": "Last image"}.items():
+                if field_name in hub.data:
+                    cv.imshow(window_name, hub.data.get(field_name))
+
+            if cv.waitKey(10) == ord("q"):
                 return
+                
+            event.clear()

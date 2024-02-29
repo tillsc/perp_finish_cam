@@ -11,11 +11,11 @@ import logging
 
 def create_task(
     hub, session_name, outdir,
-    time_span, px_per_second, left_to_right, **kwargs
+    time_span, fps, slot_width, left_to_right, **kwargs
     ):
     gr = Grabber(
         hub, session_name, outdir,
-        time_span, px_per_second, left_to_right, **kwargs,
+        time_span, fps, slot_width, left_to_right, **kwargs,
     )
     return asyncio.create_task(gr.start())
 
@@ -29,7 +29,7 @@ class TimeSpanGrabber:
     def __init__(self, grabber, time_start, index):
         self.grabber = grabber
 
-        self.width = self.grabber.time_span * self.grabber.px_per_second
+        self.width = self.grabber.time_span * self.grabber.fps * self.grabber.slot_width
         self.height = self.grabber.src_height
         self.img = np.full((self.height, self.width, 3), (200, 200, 200), np.uint8)
         self.metadata = {
@@ -54,7 +54,7 @@ class TimeSpanGrabber:
 
         while (time_passed := (time.time() - self.metadata["time_start"])) < self.grabber.time_span:
             src = self.grabber.capture_frame()
-            left = round(time_passed * self.grabber.px_per_second)
+            left = round(time_passed * self.grabber.fps * self.grabber.slot_width)
 
             max_slot_width = self.width - left
             middle_left = self.grabber.src_middle_left
@@ -72,10 +72,10 @@ class TimeSpanGrabber:
             self.metadata["frame_count"] += 1
             self.metadata["fps"] = self.metadata["frame_count"] / time_passed
 
-            self.grabber.hub.publish_threadsafe("live_image", self.metadata, self.img)
+            self.grabber.hub.publish_threadsafe(live_image=self.img, live_raw_image=src, live_metadata=self.metadata)
 
-        if self.metadata["fps"] > self.grabber.px_per_second:
-            print(f"Real FPS ({self.metadata['fps']}) allows higher resolution (>= {round(self.metadata['fps'])} px/sec - current is {self.grabber.px_per_second} px/sec)")
+        if self.metadata["fps"] > self.grabber.fps:
+            print(f"Real FPS ({self.metadata['fps']}) allows higher fps rate (>= {round(self.metadata['fps'])} pictures/sec - current is {self.grabber.fps} pictures/sec)")
 
         self.done = True
 
@@ -90,7 +90,7 @@ STAMPS_COLOR = (100, 255, 100)
 class Grabber:
     def __init__(
         self, hub, session_name, outdir,
-        time_span, px_per_second, left_to_right, **kwargs,
+        time_span, fps, slot_width, left_to_right, **kwargs,
     ):
         self.video_capture = False
 
@@ -98,7 +98,8 @@ class Grabber:
         self.session_name = session_name
         self.outdir = outdir
         self.time_span = time_span
-        self.px_per_second = px_per_second
+        self.fps = fps
+        self.slot_width = slot_width
         self.left_to_right = left_to_right
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
@@ -129,7 +130,7 @@ class Grabber:
         
         logging.debug("Enter capture loop")
         while not asyncio.current_task().done():
-            capture = asyncio.to_thread(current_capture.run)
+            capture_future = asyncio.to_thread(current_capture.run)
 
             # Running paralell now
             next_capture = TimeSpanGrabber(
@@ -137,18 +138,10 @@ class Grabber:
             )
 
             if last_capture != None:
-                img = last_capture.img
-
-                img = self.__stamp_image(img, last_capture.metadata)
-
-                self.last_img = img
-                self.hub.publish("image", last_capture.metadata, img)
-
-                basename = self.__write_image_and_metadata(img, last_capture.metadata)
-                print("Image taken", basename, last_capture.metadata)
+                await asyncio.to_thread(self.__postprocess_capture, last_capture)
 
             try:
-                await capture
+                await capture_future
             except asyncio.CancelledError:
                 break
 
@@ -170,6 +163,16 @@ class Grabber:
             src = cv.flip(src, 1)
         return src
 
+    def __postprocess_capture(self, last_capture):
+        img = last_capture.img
+
+        img = self.__stamp_image(img, last_capture.metadata)
+
+        self.hub.publish(image=img, metadata=last_capture.metadata)
+
+        basename = self.__write_image_and_metadata(img, last_capture.metadata)
+        print("Image taken", basename, last_capture.metadata)
+
     def __stamp_image(self, img, metadata):
         height, width = img.shape[:2]
         time_start = metadata.get("time_start")
@@ -184,7 +187,7 @@ class Grabber:
         if self.stamp_options.get("ticks"):
             for ix in range(-1, self.time_span):
                 x = round(
-                    (ix + (1 - (time_start - math.floor(time_start)))) * self.px_per_second
+                    (ix + (1 - (time_start - math.floor(time_start)))) * self.fps * self.slot_width
                 )
                 img = cv.line(img, (x, height - 10), (x, height), STAMPS_COLOR, 1)
                 if self.stamp_options.get("tick-texts"):
@@ -228,13 +231,15 @@ class Grabber:
                 "time_start": self.time_first_start,
                 "time_span": self.time_span,
                 "left_to_right": self.left_to_right,
-                "px_per_second": self.px_per_second,
+                "px_per_second": self.fps * self.slot_width,
+                "slot_width": self.slot_width,
                 "last_index": last_index
         }
             
 
     def __init_video(self):
         self.video_capture = cv.VideoCapture(cv.CAP_ANY)
+        self.video_capture.set(cv.CAP_PROP_FPS, self.fps)
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")
 

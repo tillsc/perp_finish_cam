@@ -5,25 +5,29 @@ import logging
 class Hub:
     def __init__(self):
         self.subscriptions = set()
+        self.data = {}
         self._loop = asyncio.get_running_loop()
 
-    def publish(self, message, metadata = {}, data=None):
-        logging.debug("New Message: %s", message)
-        for queue in self.subscriptions:
-            queue.put_nowait((message, metadata, data))
+    def publish(self, data=None, **kwargs):
+        for key, value in kwargs.items():
+            self.data[key] = value
+        if data != None:
+            for key, value in data.items():
+                self.data[key] = value
+        for event in self.subscriptions:
+            event.set()
 
-    def publish_threadsafe(self, message, metadata = {}, data=None):
-        self._loop.call_soon_threadsafe(self.publish, message, metadata, data)
-
+    def publish_threadsafe(self, **kwargs):
+        self._loop.call_soon_threadsafe(self.publish, kwargs)
 
 class Subscription:
     def __init__(self, hub):
         self.hub = hub
-        self.queue = asyncio.Queue()
+        self.event = asyncio.Event()
 
     def __enter__(self):
-        self.hub.subscriptions.add(self.queue)
-        return self.queue
+        self.hub.subscriptions.add(self.event)
+        return self.event
 
     def __exit__(self, type, value, traceback):
-        self.hub.subscriptions.remove(self.queue)
+        self.hub.subscriptions.remove(self.event)
