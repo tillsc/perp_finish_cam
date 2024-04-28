@@ -1,6 +1,7 @@
 import { LitElement, html } from '../lit.js';
 
-import componentCss from './styles.js';
+import { browserCss } from './styles.js';
+import { SessionListService } from './metadata.js';
 
 class PerpFinishcamBrowserElement extends LitElement {
     static properties = {
@@ -8,60 +9,39 @@ class PerpFinishcamBrowserElement extends LitElement {
         selectedSessionKey: { type: String },
 
         // Internal properties
-        _error: { type: String, state: true },
-        _sessions: { type: Object, state: true }
+        _error: { type: String, state: true }
     };
 
-    static styles = componentCss;
+    static styles = browserCss;
 
-    buildUri(relativePath) {
-        if (!this.baseUrl) {
-            this.baseURL = new URL(this.href, window.location.href);
-            if (!this.baseURL.pathname.endsWith('/')) {
-                this.baseURL.pathname = this.baseURL.pathname + '/';
-            }
-        }
-        return new URL(relativePath, this.baseURL).href
-    }
+    sessionListService = new SessionListService({
+        onNewSessionList: () => {
+            this._error = undefined;
+            this.requestUpdate();
+        },
+        onError: msg => this._error = msg
+    });
 
     connectedCallback() {
         super.connectedCallback();
 
-        this.fetchSessions();
+        this.sessionListService.start(this.href);
     }
 
-    async fetchSessions() {
-        const uri = this.buildUri('index.json');
-        const response = await fetch(uri);
-        if (response.ok) {
-            const json = await response.json();
-            this._sessions = json;
-        }
-        else {
-            this._error = `Could not fetch sessions with uri ${uri}:\n${response.status} ${response.statusText}`;
-        }
-    }
-
-    loaded() {
-        return this._sessions;
-    }
-
-    sessionKeys() {
-        return Object.keys(this._sessions).sort().reverse()
-    }
-
-    sessionData(sessionKey) {
-        return this._sessions[sessionKey];
-    }
 
     render() {
         if (this._error) {
             return html`<pre class="alert alert-danger" role="alert">Error: ${this._error}</pre>`
         }
         else if (this.selectedSessionKey) {
-            return html`<perp-finishcam-measuring href="${this.buildUri(this.selectedSessionKey)}"></perp-finishcam-measuring>`;
+            return html`
+            <div @click=${() => this.selectedSessionKey = null}>Close</div>
+            <perp-finishcam-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
+            <slot></slot>
+            </perp-finishcam-measuring>
+            `;
         }
-        else if (this.loaded()) {
+        else if (this.sessionListService.loaded(this.href)) {
            return this.renderWorkspace();
         }
         else {
@@ -71,14 +51,14 @@ class PerpFinishcamBrowserElement extends LitElement {
 
     renderWorkspace() {
         return html`<table class="session-list">
-            ${this.sessionKeys().map(sessionKey => {
+            ${this.sessionListService.sessionKeys().map(sessionKey => {
                 return this.renderSessionLine(sessionKey)
             })}
         </table>`
     }
 
     renderSessionLine(sessionKey) {
-        const data = this.sessionData(sessionKey);
+        const data = this.sessionListService.sessionData(sessionKey);
         const timeStart = new Date((data['time_start'] || 0) * 1000);
         const imageCount = data['last_index'] || 0;
         const timeSpan = data['time_span'] || 10;

@@ -87,7 +87,7 @@ class PerpFinishcamLiveElement extends HTMLElement {
             img.style.objectFit = 'cover';
             img.style.objectPosition = 'top left';
             img.style.height = img.naturalHeight + 'px';
-            if (this.cutImage && index == to) {
+            if (this.cutImage && index == to && this.timeStartHistory[this.currentIndex]) {
                 const now = new Date();
                 const progress = (now.getTime() - this.timeStartHistory[this.currentIndex].getTime()) / (this.timeSpan * 1000.0);
                 img.style.width = Math.round(progress * img.naturalWidth) + 'px';

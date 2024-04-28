@@ -1,6 +1,6 @@
 import {css} from '../lit.js';
 
-export default css`
+export const measuringCss = css`
 :host {
     display: block;
     background-color: lightgray;
@@ -40,4 +40,15 @@ export default css`
     overflow: scroll;
     flex: 0 0 200px;
 }
-`
+`;
+
+export const browserCss = css`
+:host {
+  display: block;
+  padding: 1rem;
+}
+  
+table td {
+padding: 0.1rem 0.3rem;
+}
+`;

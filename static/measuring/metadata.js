@@ -1,14 +1,78 @@
-export default class MetadataService {
+class MetadataServiceBase {
     constructor(options) {
         this._options = { 
-            fetchAgainDelay: 500, 
+            ...this.getDefaultOptions(),
             ...options
         };
     }
 
-    start(url) {
-        this.url = url;
-        this._fetchMetadata();
+    buildUri(relativePath) {
+        if (!this.baseUrl) {
+            this.baseURL = new URL(this.baseHref, window.location.href);
+            if (!this.baseURL.pathname.endsWith('/')) {
+                this.baseURL.pathname = this.baseURL.pathname + '/';
+            }
+        }
+        return new URL(relativePath, this.baseURL).href
+    }
+
+    start(baseHref) {
+        this.baseHref = baseHref;
+        this._fetch();
+    }
+
+    loaded() {
+        return false;
+    }
+
+    _error(msg) {
+        if (this._options.onError) {
+            this._options.onError(msg);
+        }
+    }
+
+    getDefaultOptions() { 
+        return {};
+    }
+}
+
+export class SessionListService extends MetadataServiceBase {
+    async _fetch() {
+        const uri = this.buildUri('index.json');
+        this.lastResponse = await fetch(uri);
+        if (this.lastResponse.ok) {
+            const json = await this.lastResponse.json();
+            this._sessions = json;
+            this._newSessionList();
+        }
+        else {
+            this._error = `Could not fetch sessions with uri ${uri}:\n${this.lastResponse.status} ${this.lastResponse.statusText}`;
+        }
+    }
+
+    loaded() {
+        return this._sessions;
+    }
+
+    sessionKeys() {
+        return Object.keys(this._sessions).sort().reverse()
+    }
+
+    sessionData(sessionKey) {
+        return this._sessions[sessionKey];
+    }
+
+    _newSessionList() {
+        if (this._options.onNewSessionList) {
+            this._options.onNewSessionList();
+        }
+    }
+}
+
+export class SessionMetadataService extends MetadataServiceBase {
+
+    getDefaultOptions() {
+        return { fetchAgainDelay: 500, ...super.getDefaultOptions() };
     }
 
     timeStart(index = 0) {
@@ -58,11 +122,11 @@ export default class MetadataService {
         let t = date - new Date();
         t = Math.max(t, 0);
         console.log("fetch next time in", t, `+${this._options.fetchAgainDelay} ms`);
-        this.fetchAgainTimeout = setTimeout(() => this._fetchMetadata(), t + this._options.fetchAgainDelay);
+        this.fetchAgainTimeout = setTimeout(() => this._fetch(), t + this._options.fetchAgainDelay);
     }
 
-    async _fetchMetadata() {
-        const response = await fetch(this.url);
+    async _fetch() {
+        const response = await fetch(this.buildUri('index.json'));
         if (response.ok) {
             const newMetadata = await response.json();
             if (!this._metadata || this._metadata.last_index != newMetadata.last_index) {
@@ -76,12 +140,6 @@ export default class MetadataService {
         else {
             this._error(`Failed to fetch JSON metadata from "${this.url}"`);
             this._fetchAgainAt(new Date());
-        }
-    }
-
-    _error(msg) {
-        if (this._options.onError) {
-            this._options.onError(msg);
         }
     }
 
