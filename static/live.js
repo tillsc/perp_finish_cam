@@ -66,6 +66,8 @@ class PerpFinishcamLiveElement extends HTMLElement {
     }
 
     render() {
+        this.style.display = "flex";
+
         let from = this.forIndex;
         const to = this.currentIndex;
         if (isNaN(from) || to == -1) {
@@ -84,6 +86,7 @@ class PerpFinishcamLiveElement extends HTMLElement {
             else {  
               img.src = this.currentSession ? `/data/${this.currentSession}/img${index}.webp` : '#';
             }
+            img.style.flex = '1 1 0';
             img.style.objectFit = 'cover';
             img.style.objectPosition = 'top left';
             img.style.height = img.naturalHeight + 'px';
@@ -93,8 +96,10 @@ class PerpFinishcamLiveElement extends HTMLElement {
                 img.style.width = Math.round(progress * img.naturalWidth) + 'px';
             }
             else {
-                img.style.width = 'auto';
+                const w = this.getAttribute("width");
+                img.style.width = w && `${w}px` || 'auto';
             }
+            img.style = undefined;
             img.timeStart = this.timeStartHistory[index];
         }
         for (let index = (to - from + 1); index < imgs.length; index++) {

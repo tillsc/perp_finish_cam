@@ -110,6 +110,16 @@ export class SessionMetadataService extends MetadataServiceBase {
         }
     }
 
+    imageWidth() {
+        console.log(this._metadata);
+        if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
+            return this._metadata.px_per_second * this._metadata.time_span;
+        }
+        else {
+            return 0;
+        }
+    }
+
     isLive() {
         return (this.expectedNext() - new Date() > this._options.fetchAgainDelay * 2);
     }

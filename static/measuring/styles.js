@@ -34,6 +34,10 @@ export const measuringCss = css`
     justify-content: start;
 }
 
+.images-outer > .images > * {
+    flex: 1 1 var(--image-width, 0px);
+}
+
 .hud {
     padding: 1rem;
     background-color: #888888;

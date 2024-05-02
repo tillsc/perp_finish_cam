@@ -41,20 +41,26 @@ class PerpFinishcamMeasuringElement extends LitElement {
             return html`<div class="alert alert-danger" role="alert">Error: ${this._error}</div>`
         }
         else if (this.sessionMetadataService.loaded()) {
-            if (this.firstTimeLoad && this.sessionMetadataService.isLive()) {
-                this.firstTimeLoad = null;
-                this.updateComplete.then(() => { 
-                    setTimeout(() => {
-                    const imageContainer = this.shadowRoot.querySelector('.images');
-                    imageContainer.scrollLeft = imageContainer.scrollWidth;     
-                    console.log(imageContainer,  imageContainer.scrollLeft,  imageContainer.scrollWidth)
-                }, 500);
-                 });
+            if (this.firstTimeLoad) {
+                this.handleFirstTimeLoad();
             }
             return this.renderWorkspace()
         }
         else {
             return html`<div class="alert alert-primary" role="alert">Loading...</div>`
+        }
+    }
+
+    handleFirstTimeLoad() {
+        this.firstTimeLoad = false;
+        this.style.setProperty("--image-width", this.sessionMetadataService.imageWidth() + "px");
+        if (this.sessionMetadataService.isLive()) {
+            this.updateComplete.then(() => {
+                setTimeout(() => {
+                    const imageContainer = this.shadowRoot.querySelector('.images');
+                    imageContainer.scrollLeft = imageContainer.scrollWidth;     
+                }, 500);
+            });
         }
     }
 
@@ -82,12 +88,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     renderImg(index) {
-        return html`<img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}" .timeStart=${this.sessionMetadataService.timeStart(index)}>`;
+        return html`<img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}" .timeStart="${this.sessionMetadataService.timeStart(index)}">`;
     }
 
     renderLive() {
         if (this.sessionMetadataService.isLive()) {
-            return html`<perp-finishcam-live cut .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} for-index="${this.sessionMetadataService.imageCount()}"></perp-finishcam-live>`;
+            return html`<perp-finishcam-live .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} for-index="${this.sessionMetadataService.imageCount()}"></perp-finishcam-live>`;
         }
     }
 
