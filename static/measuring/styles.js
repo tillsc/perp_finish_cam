@@ -1,58 +1,125 @@
 import {css} from '../lit.js';
 
 export const measuringCss = css`
-:host {
+  :host {
     display: block;
     background-color: lightgray;
-}
+  }
 
-.wrapper {
-    height: 100%;
-
+  .wrapper {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-}
+  }
 
-.images-outer {
+  .images-outer {
     cursor: crosshair;
     flex: 1 1 auto;
-
+    
     display: flex;
     flex-direction: column;
     align-items: stretch;
-}
+  }
 
-.images-outer > .images {
+  .images-outer > .lanes {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 15px;
+    width: 150px;
+    background: #888888;
+    opacity: 0.8;
+
+    display: grid;
+    grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
+  }
+
+  .images-outer > .lanes > .lane {
+    padding: 0 0.4rem;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  .images-outer > .lanes > .lane:not(:last-child):after {
+    content: '';
+    background-color: #444;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    height: 2px;
+    cursor: ns-resize;
+  }
+
+  .images-outer > .lanes > .lane.active {
+    background: #ccc;
+  }
+
+  .images-outer > .lanes > .lane.has-time {
+    background: #7b7;
+  }
+
+
+  .images-outer > .lanes > .lane.active.has-time {
+    background: #cfc;
+  }
+  
+  .images-outer > .lanes > .lane.resizing, .images-outer > .lanes > .lane.resizing.has-time {
+    background: #ffc;
+  }
+
+  .images-outer > .images {
     overflow-x: scroll;
     overflow-y: hidden;
-    padding-bottom: 20px;
-    flex: 1 1 0;
-   
+    padding-bottom: 15px;
+    padding-left: 150px;
+    flex: 1 1 200px;
+
     display: flex;
     flex-direction: row;
     justify-content: start;
-}
+  }
 
-.images-outer > .images > * {
-    flex: 1 1 var(--image-width, 0px);
-}
+  .images-outer > .images > * {
+    flex: 1 1 var(--perp-fc-image-width, 0px);
+  }
 
-.hud {
-    padding: 1rem;
+  .hud {
+    flex: 0 0 auto;
+    padding: 0.3rem;
     background-color: #888888;
-    overflow: scroll;
-    flex: 0 0 200px;
-}
+    display: flex;
+    justify-content: space-around;
+    gap: 1rem;
+  }
 `;
 
 export const browserCss = css`
-:host {
-  display: block;
-  padding: 1rem;
-}
+  :host {
+    display: block;
+    padding: 1rem;
+    position: absolute;
+    top: var(--perp-fc-padding-top, 0);
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+    
+  table td {
+  padding: 0.1rem 0.3rem;
+  }
   
-table td {
-padding: 0.1rem 0.3rem;
-}
+  perp-fc-measuring {
+    position: absolute;
+    top: 2rem;
+    right: 0;
+    left: 0;
+    bottom: 0;
+  }
 `;

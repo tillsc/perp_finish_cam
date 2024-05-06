@@ -36,9 +36,9 @@ class PerpFinishcamBrowserElement extends LitElement {
         else if (this.selectedSessionKey) {
             return html`
             <div @click=${() => this.selectedSessionKey = null}>Close</div>
-            <perp-finishcam-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
+            <perp-fc-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
             <slot></slot>
-            </perp-finishcam-measuring>
+            </perp-fc-measuring>
             `;
         }
         else if (this.sessionListService.loaded(this.href)) {
@@ -74,4 +74,4 @@ class PerpFinishcamBrowserElement extends LitElement {
     }
 }
 
-customElements.define("perp-finishcam-browser", PerpFinishcamBrowserElement);
+customElements.define("perp-fc-browser", PerpFinishcamBrowserElement);

@@ -4,6 +4,6 @@
 {% endblock %}
 
 {% block content %}
-<perp-finishcam-measuring href="{{url_for('serve_data_file', path=session_name)}}" style="height: 100vh">
-</perp-finishcam-measuring>
+<perp-fc-measuring href="{{url_for('serve_data_file', path=session_name)}}" style="--perp-fc-padding-top: 5rem;">
+</perp-fc-measuring>
 {% endblock %}

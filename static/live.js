@@ -109,4 +109,4 @@ class PerpFinishcamLiveElement extends HTMLElement {
 
 }
 
-customElements.define("perp-finishcam-live", PerpFinishcamLiveElement);
+customElements.define("perp-fc-live", PerpFinishcamLiveElement);

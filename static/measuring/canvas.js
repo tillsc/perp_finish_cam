@@ -46,4 +46,4 @@ class PerpFinishcamMeasuringCanvasElement extends HTMLElement {
     }
 }
 
-customElements.define("perp-finishcam-measuring-canvas", PerpFinishcamMeasuringCanvasElement);
+customElements.define("perp-fc-measuring-canvas", PerpFinishcamMeasuringCanvasElement);

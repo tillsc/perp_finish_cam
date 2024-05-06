@@ -10,6 +10,6 @@ export function addSeconds(date, seconds) {
 
 export function formatTime(date) {
     if (date) {
-        return `${_zpad(date.getHours())}:${_zpad(date.getMinutes())}:${_zpad(date.getSeconds())}.${_zpad(Math.round(date.getMilliseconds() / 10))}`
+        return `${_zpad(date.getHours())}:${_zpad(date.getMinutes())}:${_zpad(date.getSeconds())}.${_zpad(Math.floor(date.getMilliseconds() / 10))}`
     }
 }
