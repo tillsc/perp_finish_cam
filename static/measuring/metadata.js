@@ -72,7 +72,7 @@ export class SessionListService extends MetadataServiceBase {
 export class SessionMetadataService extends MetadataServiceBase {
 
     getDefaultOptions() {
-        return { fetchAgainDelay: 500, ...super.getDefaultOptions() };
+        return { fetchAgainDelay: 500, liveDetectionOffset: 2000, ...super.getDefaultOptions() };
     }
 
     timeStart(index = 0) {
@@ -111,7 +111,6 @@ export class SessionMetadataService extends MetadataServiceBase {
     }
 
     imageWidth() {
-        console.log(this._metadata);
         if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
             return this._metadata.px_per_second * this._metadata.time_span;
         }
@@ -121,7 +120,7 @@ export class SessionMetadataService extends MetadataServiceBase {
     }
 
     isLive() {
-        return (this.expectedNext() - new Date() > this._options.fetchAgainDelay * 2);
+        return (this.expectedNext() - new Date() + this._options.liveDetectionOffset > 0);
     }
 
     loaded() {
