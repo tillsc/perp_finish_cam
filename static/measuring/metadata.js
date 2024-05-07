@@ -119,6 +119,28 @@ export class SessionMetadataService extends MetadataServiceBase {
         }
     }
 
+    imageHeight() {
+        return this._metadata && this._metadata.height || 0;
+    }
+
+    timeFromX(x) {
+        if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
+            return this.timeStart(x / (this._metadata.px_per_second * this._metadata.time_span));
+        }
+        else {
+            return 0;
+        }
+    }
+
+    xFromTime(t) {
+        if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
+            return (t - this.timeStart()) / 1000 * this._metadata.px_per_second;
+        }
+        else {
+            return 0;
+        }
+    }
+
     isLive() {
         return (this.expectedNext() - new Date() + this._options.liveDetectionOffset > 0);
     }

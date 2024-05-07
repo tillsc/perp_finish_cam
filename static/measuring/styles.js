@@ -38,6 +38,23 @@ export const measuringCss = css`
     display: grid;
     grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
   }
+  
+  .images > .times {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 15px;
+    right: 0;
+    padding-left: 150px;
+
+    display: grid;
+    grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
+  }
+
+  .images > .times > .time.has-time {
+    width: var(--perp-fc-time-x, 0);
+    border-right: 1.5px solid #5F5;
+  }
 
   .images-outer > .lanes > .lane {
     padding: 0 0.4rem;
@@ -84,12 +101,15 @@ export const measuringCss = css`
     display: flex;
     flex-direction: row;
     justify-content: start;
+    position: relative;
   }
 
   .images-outer > .images > * {
-    flex: 1 1 var(--perp-fc-image-width, 0px);
+    flex: 1 1 auto;
+    aspect-ratio: var(--perp-fc-image-ratio, auto);
+    height: 100%;
   }
-
+  
   .hud {
     flex: 0 0 auto;
     padding: 0.3rem;

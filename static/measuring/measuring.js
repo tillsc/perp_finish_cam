@@ -24,6 +24,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
     static styles = measuringCss;
 
     canvasRef = createRef();
+    imagesRef = createRef();
     sessionMetadataService = new SessionMetadataService({
         onNewImage: () => {
             this._error = undefined;
@@ -84,29 +85,14 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     render() {
         if (this._error) {
-            return html`
-                <div class="alert alert-danger" role="alert">Error: ${this._error}</div>`
+            return html`<div class="alert alert-danger" role="alert">Error: ${this._error}</div>`
         } else if (this.sessionMetadataService.loaded()) {
             if (this.firstTimeLoad) {
-                this.handleFirstTimeLoad();
+                this._handleFirstTimeLoad();
             }
             return this.renderWorkspace()
         } else {
-            return html`
-                <div class="alert alert-primary" role="alert">Loading...</div>`
-        }
-    }
-
-    handleFirstTimeLoad() {
-        this.firstTimeLoad = false;
-        this.style.setProperty("--perp-fc-image-width", this.sessionMetadataService.imageWidth() + "px");
-        if (this.sessionMetadataService.isLive()) {
-            this.updateComplete.then(() => {
-                setTimeout(() => {
-                    const imageContainer = this.shadowRoot.querySelector('.images');
-                    imageContainer.scrollLeft = imageContainer.scrollWidth;
-                }, 500);
-            });
+            return html`<div class="alert alert-primary" role="alert">Loading...</div>`
         }
     }
 
@@ -114,16 +100,39 @@ class PerpFinishcamMeasuringElement extends LitElement {
         return html`
             <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}">
                 <div class="images-outer">
+                    <div class="images" ${ref(this.imagesRef)} 
+                         style="--perp-fc-image-ratio: ${this.sessionMetadataService.imageWidth() / this.sessionMetadataService.imageHeight()};">
+                        ${[...Array(this.sessionMetadataService.imageCount()).keys()].map(index => html`
+                            <img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}" 
+                                 .timeStart="${this.sessionMetadataService.timeStart(index)}">
+                        `)}
+                        ${this.sessionMetadataService.isLive() ? html`
+                            <perp-fc-live 
+                              .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} 
+                              for-index="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
+                        <div class="times"
+                             style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}">
+                            ${this._lanes?.map(lane =>  html`
+                                <div class="time ${lane.time ? 'has-time' : ''}" 
+                                     style="--perp-fc-time-x: ${lane.time ? this.sessionMetadataService.xFromTime(lane.time) : '0'}" 
+                                     .data-lane=${lane}>
+                                </div>`)}
+                        </div>
+                    </div>
+                    
                     <div class="lanes"
-                         style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}" }>
-                        ${this._lanes?.map(l => this.renderLane(l))}
+                         style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}">
+                        ${this._lanes?.map(lane => html`
+                            <div class="lane ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}" 
+                                 ${ref(lane.ref)} .data-lane=${lane} 
+                                 title="${lane.time ? formatTime(lane.time) : ''}">
+                                ${lane.text}
+                            </div>`)}
                     </div>
-                    <div class="images">
-                        ${[...Array(this.sessionMetadataService.imageCount()).keys()].map(index => this.renderImg(index))}
-                        ${this.renderLive()}
-                    </div>
+                    
                     <perp-fc-measuring-canvas ${ref(this.canvasRef)}></perp-fc-measuring-canvas>
                 </div>
+                
                 <div class="hud">
                         <div>Time: ${formatTime(this._x)}</div>
                         <div>Lane: ${this._activeLane?.text}</div>
@@ -132,14 +141,17 @@ class PerpFinishcamMeasuringElement extends LitElement {
         `;
     }
 
-    renderLane(lane) {
-        return html`
-            <div class="lane ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}"
-                 ${ref(lane.ref)} .data-lane=${lane}
-                 title="${lane.time ? formatTime(lane.time) : ''}"
-            >
-                ${lane.text}
-            </div>`;
+    _handleFirstTimeLoad() {
+        this.firstTimeLoad = false;
+        if (this.sessionMetadataService.isLive()) {
+            this.updateComplete.then(() => {
+                setTimeout(() => this.scrollToRight(), 500);
+            });
+        }
+    }
+
+    scrollToRight() {
+        this.imagesRef.value.scrollLeft = this.imagesRef.value.scrollWidth;
     }
 
     handleEvent(event) {
@@ -196,31 +208,13 @@ class PerpFinishcamMeasuringElement extends LitElement {
         const bb = this.getBoundingClientRect();
         this.canvasRef.value?.drawLiveCrosshair(event.pageX - bb.left, event.pageY - bb.top);
 
-        if (event.target?.timeStart) {
-            this._x = addSeconds(event.target.timeStart, this.sessionMetadataService.timeSpan() * (event.offsetX - 1) / event.target.width);
-        }
-        else if (this._x) {
-            this._x = null;
-        }
+        const bbFirstImage = this.imagesRef.value.firstElementChild.getBoundingClientRect();
+        this._x = this.sessionMetadataService.timeFromX(event.pageX - bbFirstImage.left);
 
         this._activeLane = this._lanes?.find(l => {
             const r = l.ref?.value.getBoundingClientRect();
             return r && r.top <= event.clientY && r.bottom >= event.clientY;
         });
-    }
-
-    renderImg(index) {
-        return html`<img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}"
-                         .timeStart="${this.sessionMetadataService.timeStart(index)}">`;
-    }
-
-    renderLive() {
-        if (this.sessionMetadataService.isLive()) {
-            return html`
-                <perp-fc-live
-                  .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())}
-                  for-index="${this.sessionMetadataService.imageCount()}"></perp-fc-live>`;
-        }
     }
 
 }
