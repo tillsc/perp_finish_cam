@@ -37,6 +37,7 @@ class TimeSpanGrabber:
             "time_start": time_start,
             "time_span": self.grabber.time_span,
             "index": index,
+            "height": self.height,
             "frame_count": 0,
             "fps": 0,
         }
@@ -236,7 +237,8 @@ class Grabber:
                 "left_to_right": self.left_to_right,
                 "px_per_second": self.fps * self.slot_width,
                 "slot_width": self.slot_width,
-                "last_index": last_index
+                "last_index": last_index,
+                "height": self.src_height
         }
             
 
