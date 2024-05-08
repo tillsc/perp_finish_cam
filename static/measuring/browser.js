@@ -68,7 +68,7 @@ class PerpFinishcamBrowserElement extends LitElement {
             <td>${timeStart.toLocaleDateString()}</td>
             <td>${timeStart.toLocaleTimeString()}</td>
             <td>${timeEnd.toLocaleTimeString()}</td>
-            <td>${imageCount}</td>
+            <td>${imageCount + 1}</td>
             <td>${isLive ? 'Live!' : ''}</td>
         <tr>`
     }

@@ -21,6 +21,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
         _resizingLaneIndex: {type: Number, state: true},
 
         _currentScale: {type: Number, state: true},
+        _currentOffsetLeft: {type: Number, state: true},
 
         _x: {type: Number, state: true}
     };
@@ -102,7 +103,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
     renderWorkspace() {
         return html`
             <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}"
-                 style="--perp-fc-image-scale: ${this._currentScale}; --perp-fc-image-ratio: ${this.sessionMetadataService.imageWidth() / this.sessionMetadataService.imageHeight()};">
+                 style="--perp-fc-image-scale: ${this._currentScale}; --perp-fc-offset-left: ${this._currentOffsetLeft}px; 
+                 --perp-fc-image-ratio: ${this.sessionMetadataService.imageWidth() / this.sessionMetadataService.imageHeight()};
+                 --perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')};">
                 <div class="images-outer">
                     <div class="images" ${ref(this.imagesRef)} @scroll="${this}">
                         ${[...Array(this.sessionMetadataService.imageCount()).keys()].map(index => html`
@@ -112,19 +115,23 @@ class PerpFinishcamMeasuringElement extends LitElement {
                         ${this.sessionMetadataService.isLive() ? html`
                             <perp-fc-live 
                               .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} 
-                              for-index="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
+                              for-itimesndex="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
+                        <div class="times">
+                            ${this._lanes?.map(lane => html`
+                                <div class="time ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''}" 
+                                     style="--perp-fc-time-x: ${lane.time ? (lane.time - this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() : 0}px"
+                                     data-lane-index="${lane.index}">
+                                    ${lane.time ? formatTime(lane.time) : ''}
+                                </div>`)}
+                        </div>
                     </div>
                     
-                    <div class="lanes"
-                         style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}">
+                    <div class="lanes">
                         ${this._lanes?.map(lane => html`
                             <div class="lane ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}" 
                                  ${ref(lane.ref)} data-lane-index="${lane.index}"
                                  title="${lane.time ? formatTime(lane.time) : ''}">
                                 ${lane.text}
-                                ${lane.time ? html`<div class="time" style="--perp-fc-time-x: ${(lane.time - this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond()}px">
-                                    ${formatTime(lane.time)}
-                                </div>` : ''}
                             </div>`)}
                     </div>
                     
@@ -147,6 +154,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
             this.boundingBoxFirstImage = this.imagesRef?.value?.firstElementChild?.getBoundingClientRect();
             if (this.boundingBoxFirstImage) {
                 this._currentScale = this.boundingBoxFirstImage.width / this.sessionMetadataService.imageWidth();
+                this._currentOffsetLeft = this.boundingBoxFirstImage.left;
             }
         }
         if (!this.alreadyScrolledRight && this.sessionMetadataService.isLive()) {

@@ -47,16 +47,6 @@ export const measuringCss = css`
     position: relative;
   }
 
-  .images-outer > .lanes > .lane > .time {
-    border-left: 1.5px solid #5F5;
-    color: #5F5;
-    padding-left: 0.5rem;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(150px + calc(var(--perp-fc-time-x, 0) * var(--perp-fc-image-scale, 1)));
-  }
-
   .images-outer > .lanes > .lane:not(:last-child):after {
     content: '';
     background-color: #444;
@@ -102,6 +92,22 @@ export const measuringCss = css`
     flex: 1 1 auto;
     aspect-ratio: var(--perp-fc-image-ratio, auto);
     height: 100%;
+  }
+  
+  .images-outer > .images > .times {
+    position: absolute;
+    bottom: 15px;
+    
+    display: grid;
+    grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
+  }
+
+  .images-outer > .images > .times > .time.has-time {
+    border-left: 1.5px solid #5F5;
+    color: #5F5;
+    padding-left: 0.5rem;
+    position: relative;
+    left: calc(var(--perp-fc-time-x, 0) * var(--perp-fc-image-scale, 1));
   }
   
   .hud {
