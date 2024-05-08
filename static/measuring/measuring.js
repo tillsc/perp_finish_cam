@@ -14,10 +14,14 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
         // Internal properties
         _error: {type: String, state: true},
+
         _lanes: {type: Array, state: true},
         _laneHeightPercentages: {type: Array, state: true},
         _activeLane: {type: Object, state: true},
         _resizingLaneIndex: {type: Number, state: true},
+
+        _currentScale: {type: Number, state: true},
+
         _x: {type: Number, state: true}
     };
 
@@ -38,12 +42,13 @@ class PerpFinishcamMeasuringElement extends LitElement {
         document.body.style['overscroll-behavior-x'] = 'none';
         document.documentElement.style['overscroll-behavior-x'] = 'none';
 
-        this.firstTimeLoad = true;
         this.sessionMetadataService.start(this.href);
-        this.initLanes();
+        this._initLanes();
+        this.resizer = new ResizeObserver(() => this._afterRender(true));
+        this.resizer.observe(this);
     }
 
-    initLanes() {
+    _initLanes() {
         const slot = this.querySelector('slot');
         if (!slot) {
             return;
@@ -87,9 +92,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
         if (this._error) {
             return html`<div class="alert alert-danger" role="alert">Error: ${this._error}</div>`
         } else if (this.sessionMetadataService.loaded()) {
-            if (this.firstTimeLoad) {
-                this._handleFirstTimeLoad();
-            }
+            this.updateComplete.then(() => this._afterRender(false));
             return this.renderWorkspace()
         } else {
             return html`<div class="alert alert-primary" role="alert">Loading...</div>`
@@ -98,10 +101,10 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     renderWorkspace() {
         return html`
-            <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}">
+            <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}"
+                 style="--perp-fc-image-scale: ${this._currentScale}; --perp-fc-image-ratio: ${this.sessionMetadataService.imageWidth() / this.sessionMetadataService.imageHeight()};">
                 <div class="images-outer">
-                    <div class="images" ${ref(this.imagesRef)} 
-                         style="--perp-fc-image-ratio: ${this.sessionMetadataService.imageWidth() / this.sessionMetadataService.imageHeight()};">
+                    <div class="images" ${ref(this.imagesRef)} @scroll="${this}">
                         ${[...Array(this.sessionMetadataService.imageCount()).keys()].map(index => html`
                             <img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}" 
                                  .timeStart="${this.sessionMetadataService.timeStart(index)}">
@@ -110,23 +113,18 @@ class PerpFinishcamMeasuringElement extends LitElement {
                             <perp-fc-live 
                               .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} 
                               for-index="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
-                        <div class="times"
-                             style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}">
-                            ${this._lanes?.map(lane =>  html`
-                                <div class="time ${lane.time ? 'has-time' : ''}" 
-                                     style="--perp-fc-time-x: ${lane.time ? this.sessionMetadataService.xFromTime(lane.time) : '0'}" 
-                                     .data-lane=${lane}>
-                                </div>`)}
-                        </div>
                     </div>
                     
                     <div class="lanes"
                          style="--perp-fc-lanes-grid-template-rows: ${this._laneHeightPercentages?.map(perc => `${perc}%`)?.join(' ')}">
                         ${this._lanes?.map(lane => html`
                             <div class="lane ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}" 
-                                 ${ref(lane.ref)} .data-lane=${lane} 
+                                 ${ref(lane.ref)} data-lane-index="${lane.index}"
                                  title="${lane.time ? formatTime(lane.time) : ''}">
                                 ${lane.text}
+                                ${lane.time ? html`<div class="time" style="--perp-fc-time-x: ${(lane.time - this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond()}px">
+                                    ${formatTime(lane.time)}
+                                </div>` : ''}
                             </div>`)}
                     </div>
                     
@@ -141,12 +139,19 @@ class PerpFinishcamMeasuringElement extends LitElement {
         `;
     }
 
-    _handleFirstTimeLoad() {
-        this.firstTimeLoad = false;
-        if (this.sessionMetadataService.isLive()) {
-            this.updateComplete.then(() => {
-                setTimeout(() => this.scrollToRight(), 500);
-            });
+    _afterRender(forceBoundingBoxes) {
+        if (!this.boundingBox || forceBoundingBoxes) {
+            this.boundingBox = this.getBoundingClientRect();
+        }
+        if (!this.boundingBoxFirstImage || forceBoundingBoxes) {
+            this.boundingBoxFirstImage = this.imagesRef?.value?.firstElementChild?.getBoundingClientRect();
+            if (this.boundingBoxFirstImage) {
+                this._currentScale = this.boundingBoxFirstImage.width / this.sessionMetadataService.imageWidth();
+            }
+        }
+        if (!this.alreadyScrolledRight && this.sessionMetadataService.isLive()) {
+            this.alreadyScrolledRight = true;
+            setTimeout(() => this.scrollToRight(), 500);
         }
     }
 
@@ -156,12 +161,15 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     handleEvent(event) {
         switch (event.type) {
+            case 'scroll':
+                this._afterRender(true);
+                break;
             case 'mousedown':
                 if (event.target.classList.contains('lane')) {
                     if (event.offsetY > event.target.getBoundingClientRect().height - 3) {
-                        const resizingLane = event.target['data-lane'];
-                        if (resizingLane.index >= 0 && resizingLane.index <= this._lanes.length - 1) {
-                            this._resizingLaneIndex = resizingLane.index;
+                        const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
+                        if (laneIndex >= 0 && laneIndex <= this._lanes.length - 1) {
+                            this._resizingLaneIndex = laneIndex;
                         }
                     }
                 }
@@ -205,11 +213,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
     _handleMouseMove(event) {
-        const bb = this.getBoundingClientRect();
-        this.canvasRef.value?.drawLiveCrosshair(event.pageX - bb.left, event.pageY - bb.top);
+        this.canvasRef.value?.drawLiveCrosshair(event.pageX - this.boundingBox.left, event.pageY - this.boundingBox.top);
 
-        const bbFirstImage = this.imagesRef.value.firstElementChild.getBoundingClientRect();
-        this._x = this.sessionMetadataService.timeFromX(event.pageX - bbFirstImage.left);
+        if (this.boundingBoxFirstImage) {
+          this._x = this.sessionMetadataService.timeStart((event.pageX - this.boundingBoxFirstImage.left) / this.boundingBoxFirstImage.width);
+        }
 
         this._activeLane = this._lanes?.find(l => {
             const r = l.ref?.value.getBoundingClientRect();

@@ -21,6 +21,7 @@ export const measuringCss = css`
     cursor: crosshair;
     flex: 1 1 auto;
     
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -38,29 +39,22 @@ export const measuringCss = css`
     display: grid;
     grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
   }
-  
-  .images > .times {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 15px;
-    right: 0;
-    padding-left: 150px;
-
-    display: grid;
-    grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
-  }
-
-  .images > .times > .time.has-time {
-    width: var(--perp-fc-time-x, 0);
-    border-right: 1.5px solid #5F5;
-  }
 
   .images-outer > .lanes > .lane {
     padding: 0 0.4rem;
     display: flex;
     align-items: center;
     position: relative;
+  }
+
+  .images-outer > .lanes > .lane > .time {
+    border-left: 1.5px solid #5F5;
+    color: #5F5;
+    padding-left: 0.5rem;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(150px + calc(var(--perp-fc-time-x, 0) * var(--perp-fc-image-scale, 1)));
   }
 
   .images-outer > .lanes > .lane:not(:last-child):after {

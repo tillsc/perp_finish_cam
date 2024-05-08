@@ -90,6 +90,10 @@ export class SessionMetadataService extends MetadataServiceBase {
         return this._metadata?.time_span;
     }
 
+    pxPerSecond() {
+        return this._metadata?.px_per_second;
+    }
+
     expectedNext() {
         let expectedNext = this.timeEnd();
         if (expectedNext && this._metadata.time_span) {
@@ -121,24 +125,6 @@ export class SessionMetadataService extends MetadataServiceBase {
 
     imageHeight() {
         return this._metadata && this._metadata.height || 0;
-    }
-
-    timeFromX(x) {
-        if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
-            return this.timeStart(x / (this._metadata.px_per_second * this._metadata.time_span));
-        }
-        else {
-            return 0;
-        }
-    }
-
-    xFromTime(t) {
-        if (this._metadata && this._metadata.px_per_second && this._metadata.time_span) {
-            return (t - this.timeStart()) / 1000 * this._metadata.px_per_second;
-        }
-        else {
-            return 0;
-        }
     }
 
     isLive() {
