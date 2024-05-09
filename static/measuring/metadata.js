@@ -48,6 +48,7 @@ export class SessionListService extends MetadataServiceBase {
         else {
             this._error = `Could not fetch sessions with uri ${uri}:\n${this.lastResponse.status} ${this.lastResponse.statusText}`;
         }
+        setTimeout(() => this._fetch(), 10_000);
     }
 
     loaded() {
@@ -136,9 +137,7 @@ export class SessionMetadataService extends MetadataServiceBase {
     }
 
     _fetchAgainAt(date) {
-        let t = date - new Date();
-        t = Math.max(t, 0);
-        console.log("fetch next time in", t, `+${this._options.fetchAgainDelay} ms`);
+        const t = Math.max(date - new Date(), 0);
         this.fetchAgainTimeout = setTimeout(() => this._fetch(), t + this._options.fetchAgainDelay);
     }
 
