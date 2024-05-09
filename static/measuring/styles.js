@@ -96,7 +96,9 @@ export const measuringCss = css`
   
   .images-outer > .images > .times {
     position: absolute;
+    top: 0;
     bottom: 15px;
+    height: auto;
     
     display: grid;
     grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
