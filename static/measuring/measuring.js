@@ -188,6 +188,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                         this.requestUpdate();
                     }
                 }
+                event.preventDefault();
                 break;
             case 'mouseup':
             case 'mouseleave':
@@ -201,6 +202,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     this._handleLaneResize(event);
                 }
                 this._handleMouseMove(event);
+                if (event.buttons == 1 && this._x && this._activeLane) {
+                    this._activeLane.time = this._x;
+                    this.requestUpdate();
+                }
+                event.preventDefault();
                 break;
         }
     }
@@ -227,10 +233,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
           this._x = this.sessionMetadataService.timeStart((event.pageX - this.boundingBoxFirstImage.left) / this.boundingBoxFirstImage.width);
         }
 
-        this._activeLane = this._lanes?.find(l => {
-            const r = l.ref?.value.getBoundingClientRect();
-            return r && r.top <= event.clientY && r.bottom >= event.clientY;
-        });
+        if (event.buttons == 0) { // Switch active lane only when no buttons are pressed
+            this._activeLane = this._lanes?.find(l => {
+                const r = l.ref?.value.getBoundingClientRect();
+                return r && r.top <= event.clientY && r.bottom >= event.clientY;
+            });
+        }
     }
 
 }
