@@ -43,10 +43,10 @@ async def serve_data_file(path):
     return await send_from_directory(app.outdir, path)
 
 
-@app.route("/<path:path>")
-async def serve_frontend_file(path):
-    logging.info("Serving static file: %s/%s", "./static", path)
-    return await send_from_directory("./static", path)
+@app.route("/js/<path:path>")
+async def serve_js_file(path):
+    logging.info("Serving js file: %s/%s", "./js", path)
+    return await send_from_directory("./js", path)
 
 
 @app.websocket("/ws/live")
