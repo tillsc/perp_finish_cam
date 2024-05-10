@@ -39,16 +39,22 @@ class MetadataServiceBase {
 export class SessionListService extends MetadataServiceBase {
     async _fetch() {
         const uri = this.buildUri('index.json');
-        this.lastResponse = await fetch(uri);
-        if (this.lastResponse.ok) {
-            const json = await this.lastResponse.json();
-            this._sessions = json;
-            this._newSessionList();
+        try {
+            this.lastResponse = await fetch(uri);
+            if (this.lastResponse.ok) {
+                const json = await this.lastResponse.json();
+                this._sessions = json;
+                this._newSessionList();
+            } else {
+                this._error(`Could not fetch sessions with uri ${uri}:\n${this.lastResponse.status} ${this.lastResponse.statusText}`);
+            }
         }
-        else {
-            this._error = `Could not fetch sessions with uri ${uri}:\n${this.lastResponse.status} ${this.lastResponse.statusText}`;
+        catch (err) {
+            this._error(`Could not fetch sessions with uri ${uri}:\n${err}`);
         }
-        setTimeout(() => this._fetch(), 10_000);
+        finally {
+            setTimeout(() => this._fetch(), 10_000);
+        }
     }
 
     loaded() {

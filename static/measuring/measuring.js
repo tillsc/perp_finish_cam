@@ -40,13 +40,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-        document.body.style['overscroll-behavior-x'] = 'none';
-        document.documentElement.style['overscroll-behavior-x'] = 'none';
 
         this.sessionMetadataService.start(this.href);
         this._initLanes();
-        this.resizer = new ResizeObserver(() => this._afterRender(true));
-        this.resizer.observe(this);
+        new ResizeObserver(() => this._afterRender(true))
+          .observe(this);
     }
 
     _initLanes() {

@@ -30,15 +30,13 @@ class PerpFinishcamBrowserElement extends LitElement {
 
 
     render() {
-        if (this._error) {
-            return html`<pre class="alert alert-danger" role="alert">Error: ${this._error}</pre>`
-        }
-        else if (this.selectedSessionKey) {
+        if (this.selectedSessionKey) {
             return html`
-            <div @click=${() => this.selectedSessionKey = null}>Close</div>
-            <perp-fc-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
-            <slot></slot>
-            </perp-fc-measuring>
+                <a href="#" @click=${this}>Back to Session List</a>
+                <slot name="metadata" @slotchange="${this}"></slot>
+                <perp-fc-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
+                    <slot></slot>
+                </perp-fc-measuring>
             `;
         }
         else if (this.sessionListService.loaded(this.href)) {
@@ -50,7 +48,19 @@ class PerpFinishcamBrowserElement extends LitElement {
     }
 
     renderWorkspace() {
-        return html`<table class="session-list">
+        return html`
+            ${this._error ? 
+              html`<pre class="alert alert-danger" role="alert">Error: ${this._error}</pre>` :
+              ''}
+            <slot name="metadata" @slotchange="${this}"></slot>
+            <table class="session-list">
+            <tr>
+                <th>Date</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Images</th>
+                <th></th>
+            </tr>
             ${this.sessionListService.sessionKeys().map(sessionKey => {
                 return this.renderSessionLine(sessionKey)
             })}
@@ -64,13 +74,34 @@ class PerpFinishcamBrowserElement extends LitElement {
         const timeSpan = data['time_span'] || 10;
         const timeEnd = new Date(timeStart.valueOf() + (timeSpan * (imageCount + 1) * 1000));
         const isLive = timeEnd.valueOf() > ((new Date()).valueOf() - 20_000);
-        return html`<tr @click="${_e => this.selectedSessionKey = sessionKey}">
+        return html`<tr @click="${this}" data-session-key="${sessionKey}">
             <td>${timeStart.toLocaleDateString()}</td>
             <td>${timeStart.toLocaleTimeString()}</td>
             <td>${timeEnd.toLocaleTimeString()}</td>
-            <td>${imageCount + 1}</td>
+            <td>${imageCount !== undefined ? imageCount + 1 : '-'}</td>
             <td>${isLive ? 'Live!' : ''}</td>
         <tr>`
+    }
+
+    selectSession(sessionKey) {
+        this.selectedSessionKey = sessionKey;
+        if (this._metadataInput) {
+            this._metadataInput.value = sessionKey && JSON.stringify(this.sessionListService.sessionData(sessionKey));
+        }
+    }
+
+    handleEvent(event) {
+        switch (event.type) {
+            case "slotchange":
+                console.log("sc", event.target.assignedElements())
+                this._metadataInput = [...event.target.assignedElements()].reduce((res, el) => {
+                    return res || el.querySelector('input');
+                }, undefined);
+                break;
+            case "click":
+                this.selectSession(event.currentTarget.getAttribute('data-session-key'));
+                break;
+        }
     }
 }
 
