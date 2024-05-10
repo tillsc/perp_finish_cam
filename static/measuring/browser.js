@@ -33,7 +33,7 @@ class PerpFinishcamBrowserElement extends LitElement {
         if (this.selectedSessionKey) {
             return html`
                 <a href="#" @click=${this}>Back to Session List</a>
-                <slot name="metadata" @slotchange="${this}"></slot>
+                <slot name="metadata" @slotchange="${this}" style="display: none;"></slot>
                 <perp-fc-measuring href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
                     <slot></slot>
                 </perp-fc-measuring>
@@ -52,19 +52,20 @@ class PerpFinishcamBrowserElement extends LitElement {
             ${this._error ? 
               html`<pre class="alert alert-danger" role="alert">Error: ${this._error}</pre>` :
               ''}
-            <slot name="metadata" @slotchange="${this}"></slot>
             <table class="session-list">
-            <tr>
-                <th>Date</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Images</th>
-                <th></th>
-            </tr>
-            ${this.sessionListService.sessionKeys().map(sessionKey => {
-                return this.renderSessionLine(sessionKey)
-            })}
-        </table>`
+                <tr>
+                    <th>Date</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Images</th>
+                    <th></th>
+                </tr>
+                ${this.sessionListService.sessionKeys().map(sessionKey => {
+                    return this.renderSessionLine(sessionKey)
+                })}
+            </table>
+            <slot name="metadata" @slotchange="${this}" style="display: none;"></slot>
+        `
     }
 
     renderSessionLine(sessionKey) {
@@ -93,7 +94,6 @@ class PerpFinishcamBrowserElement extends LitElement {
     handleEvent(event) {
         switch (event.type) {
             case "slotchange":
-                console.log("sc", event.target.assignedElements())
                 this._metadataInput = [...event.target.assignedElements()].reduce((res, el) => {
                     return res || el.querySelector('input');
                 }, undefined);
