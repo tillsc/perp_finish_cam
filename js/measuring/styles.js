@@ -131,6 +131,7 @@ export const browserCss = css`
     bottom: 0;
     left: 0;
     right: 0;
+    overflow: scroll;
   }
     
   table td {
@@ -139,7 +140,7 @@ export const browserCss = css`
   
   perp-fc-measuring {
     position: absolute;
-    top: 2rem;
+    top: 2.5rem;
     right: 0;
     left: 0;
     bottom: 0;

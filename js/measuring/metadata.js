@@ -16,9 +16,10 @@ class MetadataServiceBase {
         return new URL(relativePath, this.baseURL).href
     }
 
-    start(baseHref) {
+    async start(baseHref) {
         this.baseHref = baseHref;
-        this._fetch();
+        await this._fetch();
+        this._loaded();
     }
 
     loaded() {
@@ -33,6 +34,12 @@ class MetadataServiceBase {
 
     getDefaultOptions() { 
         return {};
+    }
+
+    _loaded() {
+        if (this._options.onLoaded) {
+            this._options.onLoaded();
+        }
     }
 }
 

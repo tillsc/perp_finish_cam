@@ -35,6 +35,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
             this._error = undefined;
             this.requestUpdate();
         },
+        onLoaded: () => this._initLanes(this.sessionMetadataService.timeStart()),
         onError: (msg) => this._error = msg
     });
 
@@ -42,12 +43,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
         super.connectedCallback();
 
         this.sessionMetadataService.start(this.href);
-        this._initLanes();
         new ResizeObserver(() => this._afterRender(true))
           .observe(this);
     }
 
-    _initLanes() {
+    _initLanes(baseDate) {
         const slot = this.querySelector('slot');
         if (!slot) {
             return;
@@ -59,14 +59,14 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 const input = element.querySelector('input');
                 let time;
                 if (input && input.value) {
-                    time = new Date(`1980-01-01T${input.value}`);
+                    time = new Date(`${baseDate.toDateString()} ${input.value}`);
                 }
                 this._lanes.push({text: element.innerText, input, time, ...base});
             } else {
                 this._lanes.push({text: "Lane ${index + 1}", ...base});
             }
         });
-        let stored = localStorage.getItem("laneHeightPercentages");
+        let stored = localStorage.getItem("laneHeightPercentages") || '[]';
         if (stored) {
             try {
                 stored = JSON.parse(stored);
@@ -98,6 +98,19 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
 
+    timeToX(time) {
+        if (time) {
+            let t = (time - this.sessionMetadataService.timeStart())/1000 % 86_400;
+            if (t <= 0) {
+                t = t + 86_400;
+            }
+            return t * this.sessionMetadataService.pxPerSecond();
+        }
+        else {
+            return 0;
+        }
+    }
+
     renderWorkspace() {
         return html`
             <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}"
@@ -117,7 +130,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                         <div class="times">
                             ${this._lanes?.map(lane => html`
                                 <div class="time ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''}" 
-                                     style="--perp-fc-time-x: ${lane.time ? (lane.time - this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() : 0}px"
+                                     style="--perp-fc-time-x: ${this.timeToX(lane.time)}px"
                                      data-lane-index="${lane.index}">
                                     ${lane.time ? formatTime(lane.time) : ''}
                                 </div>`)}
