@@ -97,6 +97,17 @@ class PerpFinishcamBrowserElement extends LitElement {
                 this._metadataInput = [...event.target.assignedElements()].reduce((res, el) => {
                     return res || el.querySelector('input');
                 }, undefined);
+                if (this._metadataInput?.value) {
+                    try {
+                        const data = JSON.parse(this._metadataInput.value);
+                        if (data.session_name && this.sessionListService. sessionKeys().includes(data.session_name)) {
+                            this.selectedSessionKey = data.session_name;
+                        }
+                    }
+                    catch {
+                        console.log("Couldn't parse JSON:", e)
+                    }
+                }
                 break;
             case "click":
                 this.selectSession(event.currentTarget.getAttribute('data-session-key'));
