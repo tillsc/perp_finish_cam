@@ -196,6 +196,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     this._handleMouseMove(event);
                     if (this._x && this._activeLane) {
                         this._activeLane.time = this._x;
+                        if (this._activeLane.input) {
+                            this._activeLane.input.value = formatTime(this._x);
+                        }
                         this.requestUpdate();
                     }
                 }
