@@ -4,13 +4,14 @@ import { measuringCss } from './styles.js';
 import { SessionMetadataService } from './metadata.js';
 import './canvas.js';
 
-import { formatTime, addSeconds } from '../time.js';
+import { formatTime, timeDifferenceInMilliseconds, timeDifference } from '../time.js';
 
 import '../live.js';
 
 class PerpFinishcamMeasuringElement extends LitElement {
     static properties = {
         href: {type: String},
+        startTime: {type: String, attribute: 'start-time'},
 
         // Internal properties
         _error: {type: String, state: true},
@@ -98,19 +99,6 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
 
-    timeToX(time) {
-        if (time) {
-            let t = (time - this.sessionMetadataService.timeStart())/1000 % 86_400;
-            if (t <= 0) {
-                t = t + 86_400;
-            }
-            return t * this.sessionMetadataService.pxPerSecond();
-        }
-        else {
-            return 0;
-        }
-    }
-
     renderWorkspace() {
         return html`
             <div class="wrapper" @mousemove="${this}" @mouseup="${this}" @mousedown="${this}" @mouseleave="${this}"
@@ -130,9 +118,10 @@ class PerpFinishcamMeasuringElement extends LitElement {
                         <div class="times">
                             ${this._lanes?.map(lane => html`
                                 <div class="time ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''}" 
-                                     style="--perp-fc-time-x: ${this.timeToX(lane.time)}px"
+                                     style="--perp-fc-time-x: ${lane.time ? timeDifferenceInMilliseconds(lane.time, this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() : 0}px"
                                      data-lane-index="${lane.index}">
-                                    ${lane.time ? formatTime(lane.time) : ''}
+                                    ${lane.time ? formatTime(lane.time) : ''}<br>
+                                    ${this._relativeTime(lane.time)}
                                 </div>`)}
                         </div>
                     </div>
@@ -150,11 +139,17 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
                 
                 <div class="hud">
-                        <div>Time: ${formatTime(this._x)}</div>
+                        <div>Time: ${formatTime(this._x)} (${formatTime(timeDifference(this._x, new Date(this.startTime)), true)})</div>
                         <div>Lane: ${this._activeLane?.text}</div>
                 </div>
             </div>
         `;
+    }
+
+    _relativeTime(date) {
+        if (date && this.startTime) {
+            return formatTime(timeDifference(date, new Date(this.startTime)), true);
+        }
     }
 
     _afterRender(forceBoundingBoxes) {
