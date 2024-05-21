@@ -32,7 +32,7 @@ export const measuringCss = css`
     left: 0;
     top: 0;
     bottom: 15px;
-    width: 150px;
+    width: var(--perp-fc-lanes-width, 60px);
     background: #888888;
     opacity: 0.8;
 
@@ -79,7 +79,7 @@ export const measuringCss = css`
     overflow-x: scroll;
     overflow-y: hidden;
     padding-bottom: 15px;
-    padding-left: 150px;
+    padding-left: var(--perp-fc-lanes-width, 60px);
     flex: 1 1 200px;
 
     display: flex;
@@ -118,7 +118,13 @@ export const measuringCss = css`
     background-color: #888888;
     display: flex;
     justify-content: space-around;
+    gap: 3rem;
+  }
+
+  .hud .ranks {
+    display: flex;
     gap: 1rem;
+    text-align: right;
   }
 `;
 

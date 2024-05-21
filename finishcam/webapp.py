@@ -8,6 +8,7 @@ import cv2 as cv
 import json
 import asyncio
 import logging
+from datetime import datetime
 
 import finishcam.pubsub
 
@@ -27,7 +28,8 @@ async def home():
     last_image_url = "/data/%s/img%s.webp" % (app.session_name, "0") # TODO
     return await render_template(
         "index.html.jinja", 
-        session_name=app.session_name, last_image_url=last_image_url
+        session_name=app.session_name, last_image_url=last_image_url,
+        start_time=app.virtual_start_time
     )
 
 @app.route("/sessions/<string:session_name>")
@@ -84,6 +86,7 @@ async def start(hub, session_name, outdir):
     app.hub = hub
     app.session_name = session_name
     app.outdir = outdir
+    app.virtual_start_time = datetime.now()
 
     config = Config()
     config.bind = ["localhost:5001"]
