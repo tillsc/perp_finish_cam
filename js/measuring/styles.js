@@ -131,7 +131,6 @@ export const measuringCss = css`
 export const browserCss = css`
   :host {
     display: block;
-    padding: 1rem;
     position: absolute;
     top: var(--perp-fc-padding-top, 0);
     bottom: 0;
@@ -146,7 +145,7 @@ export const browserCss = css`
   
   perp-fc-measuring {
     position: absolute;
-    top: 2.5rem;
+    top: 1.5rem;
     right: 0;
     left: 0;
     bottom: 0;
