@@ -141,7 +141,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
                 
                 <div class="hud">
-                    <div>Time: ${formatTime(this._x)} (${formatTime(timeDifference(this._x, new Date(this.startTime)), true)})</div>
+                    <div>Time: ${formatTime(this._x)} ${this.startTime ? `(${formatTime(timeDifference(this._x, new Date(this.startTime)), true)}` : ''}</div>
                     <div>Lane: ${this._activeLane?.text}</div>
                     <div class="ranks">${this._lanes?.filter((l) => !!l.time)?.sort((l1, l2) => l1.time - l2.time)?.map((l) => {
                         const res = html`<div>${l.text}<br>${lastTime ? '+' + formatTime(timeDifference(l.time, lastTime), true) : ''}</div>`;
@@ -174,6 +174,10 @@ class PerpFinishcamMeasuringElement extends LitElement {
             this.alreadyScrolledRight = true;
             setTimeout(() => this.scrollToRight(), 500);
         }
+    }
+
+    scrollToTime(time) {
+        this.imagesRef.value.scrollLeft = timeDifferenceInMilliseconds(time, this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() * this._currentScale;
     }
 
     scrollToRight() {
