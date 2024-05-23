@@ -75,7 +75,7 @@ async def ws_live():
             
                 await websocket.send(np.insert(buf, 0, 0))
 
-            await asyncio.sleep(.1)               
+            await asyncio.sleep(.3)
             event.clear()
 
 
