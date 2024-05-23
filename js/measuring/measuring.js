@@ -4,7 +4,7 @@ import { measuringCss } from './styles.js';
 import { SessionMetadataService } from './metadata.js';
 import './canvas.js';
 
-import { formatTime, timeDifferenceInMilliseconds, timeDifference } from '../time.js';
+import {formatTime, timeDifferenceInMilliseconds, timeDifference, parseTime} from '../time.js';
 
 import '../live.js';
 
@@ -60,7 +60,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 const input = element.querySelector('input');
                 let time;
                 if (input && input.value) {
-                    time = new Date(`${baseDate.toDateString()} ${input.value}`);
+                    time = parseTime(input.value, baseDate);
                 }
                 this._lanes.push({text: element.innerText, input, time, ...base});
             } else {
@@ -143,7 +143,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 <div class="hud">
                     <div>Time: ${formatTime(this._x)} ${this.startTime ? `(${formatTime(timeDifference(this._x, new Date(this.startTime)), true)}` : ''}</div>
                     <div>Lane: ${this._activeLane?.text}</div>
-                    <div class="ranks">${this._lanes?.filter((l) => !!l.time)?.sort((l1, l2) => l1.time - l2.time)?.map((l) => {
+                    <div class="ranks">${this._lanesWithTimes().map((l) => {
                         const res = html`<div>${l.text}<br>${lastTime ? '+' + formatTime(timeDifference(l.time, lastTime), true) : ''}</div>`;
                         lastTime = l.time;
                         return res;
@@ -151,6 +151,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
             </div>
         `;
+    }
+
+    _lanesWithTimes() {
+        return (this._lanes || [])
+          .filter((l) => !!l.time)
+          .sort((l1, l2) => l1.time - l2.time);
     }
 
     _relativeTime(date) {
@@ -170,9 +176,21 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 this._currentOffsetLeft = this.boundingBoxFirstImage.left;
             }
         }
-        if (!this.alreadyScrolledRight && this.sessionMetadataService.isLive()) {
+        if (!this.alreadyScrolledRight) {
             this.alreadyScrolledRight = true;
-            setTimeout(() => this.scrollToRight(), 500);
+            setTimeout(() => {
+                const firstTime = this._lanesWithTimes()[0]?.time;
+                if (firstTime) {
+                    this.scrollToTime(firstTime);
+                }
+                else if (this.getAttribute('expected-at')) {
+                    const expectedAt = parseTime(this.getAttribute('expected-at'), this.sessionMetadataService.timeStart());
+                    this.scrollToTime(expectedAt);
+                }
+                else if (this.sessionMetadataService.isLive()) {
+                    this.scrollToRight();
+                }
+            }, 500);
         }
     }
 
