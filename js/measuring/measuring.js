@@ -114,6 +114,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                         `)}
                         ${this.sessionMetadataService.isLive() ? html`
                             <perp-fc-live 
+                              href="${this.href}"
                               .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} 
                               for-itimesndex="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
                         <div class="times">

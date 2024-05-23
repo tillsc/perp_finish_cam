@@ -16,7 +16,7 @@ class PerpFinishcamLiveElement extends HTMLElement {
         this.parseAttributes();
         this.timeStartHistory[this.currentIndex] = this.timeStart;
 
-        const loc = window.location;
+        const loc = new URL(this.getAttribute('href') || window.location.toString());
         const wsUri = (loc.protocol === "https:" ? "wss" : "ws") + "://" + loc.host + "/ws/live";
         this.webservice = new WebSocket(wsUri, ['live-image', 'metadata']);
         this.webservice.binaryType = "arraybuffer";
