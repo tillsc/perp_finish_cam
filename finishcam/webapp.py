@@ -19,6 +19,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 @app.after_request
 def add_header(r):
     r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    r.headers["Access-Control-Allow-Origin"] = "*"
     r.headers["Pragma"] = "no-cache"
     return r
 
