@@ -90,7 +90,7 @@ async def start(hub, session_name, outdir):
     app.virtual_start_time = datetime.now()
 
     config = Config()
-    config.bind = ["localhost:5001"]
+    config.bind = ["0.0.0.0:5001"]
     config.certfile = "cert.pem"
     config.keyfile = "key.pem"
     return await serve(app, config)
