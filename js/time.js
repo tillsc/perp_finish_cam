@@ -56,7 +56,7 @@ export function formatTime(date, optionalHours) {
 
 export function parseTime(timeString, baseDate) {
     baseDate = baseDate || new Date();
-    new Date(`${baseDate.toDateString()} ${timeString}`)
+    return new Date(`${baseDate.toDateString()} ${timeString}`)
 }
 
 function _zpad(value, digits = 2) {
