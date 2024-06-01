@@ -35,7 +35,9 @@ class PerpFinishcamBrowserElement extends LitElement {
             return html`
                 <a href="#" @click=${this}>Back to Session List</a>
                 <slot name="metadata" @slotchange="${this}" style="display: none;"></slot>
-                <perp-fc-measuring start-time="${this.startTime}" href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
+                <perp-fc-measuring start-time="${this.startTime}"
+                                   expected-at="${this.getAttribute('expected-at')}"
+                                   href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
                     <slot></slot>
                 </perp-fc-measuring>
             `;

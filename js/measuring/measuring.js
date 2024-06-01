@@ -141,7 +141,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
                 
                 <div class="hud">
-                    <div>Time: ${formatTime(this._x)} ${this.startTime ? `(${formatTime(timeDifference(this._x, new Date(this.startTime)), true)}` : ''}</div>
+                    <div>Time: ${formatTime(this._x)} ${this.startTime ? `(${formatTime(timeDifference(this._x, new Date(this.startTime)), true)})` : ''}</div>
                     <div>Lane: ${this._activeLane?.text}</div>
                     <div class="ranks">${this._lanesWithTimes().map((l) => {
                         const res = html`<div>${l.text}<br>${lastTime ? '+' + formatTime(timeDifference(l.time, lastTime), true) : ''}</div>`;
