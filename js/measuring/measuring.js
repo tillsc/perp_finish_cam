@@ -240,7 +240,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     this._handleLaneResize(event);
                 }
                 this._handleMouseMove(event);
-                if (event.buttons == 1 && this._x && this._activeLane) {
+                if (event.buttons == 1 && this._x && this._activeLane && this._resizingLaneIndex === undefined) {
                     this._activeLane.time = this._x;
                     this.requestUpdate();
                 }
