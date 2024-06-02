@@ -20,7 +20,7 @@ export const measuringCss = css`
   .images-outer {
     cursor: crosshair;
     flex: 1 1 auto;
-    
+
     position: relative;
     display: flex;
     flex-direction: column;
@@ -68,9 +68,9 @@ export const measuringCss = css`
 
 
   .images-outer > .lanes > .lane.active.has-time {
-    background: #cfc;
+    background: #f18383;
   }
-  
+
   .images-outer > .lanes > .lane.resizing, .images-outer > .lanes > .lane.resizing.has-time {
     background: #ffc;
   }
@@ -93,13 +93,13 @@ export const measuringCss = css`
     aspect-ratio: var(--perp-fc-image-ratio, auto);
     height: 100%;
   }
-  
+
   .images-outer > .images > .times {
     position: absolute;
     top: 0;
     bottom: 15px;
     height: auto;
-    
+
     display: grid;
     grid-template-rows: var(--perp-fc-lanes-grid-template-rows);
   }
@@ -111,7 +111,7 @@ export const measuringCss = css`
     position: relative;
     left: calc(var(--perp-fc-time-x, 0) * var(--perp-fc-image-scale, 1));
   }
-  
+
   .hud {
     flex: 0 0 auto;
     padding: 0.3rem;

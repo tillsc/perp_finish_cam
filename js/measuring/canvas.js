@@ -10,14 +10,14 @@ class PerpFinishcamMeasuringCanvasElement extends HTMLElement {
         this.canvasContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    drawLiveCrosshair(x, y) {
+    drawLiveCrosshair(x, y, color) {
         this.clear();
         this.canvasContext.beginPath()
         this.canvasContext.moveTo(0, y)
         this.canvasContext.lineTo(this.canvas.width, y)
         this.canvasContext.moveTo(x, 0)
         this.canvasContext.lineTo(x, this.canvas.height)
-        this.canvasContext.strokeStyle = '#000'
+        this.canvasContext.strokeStyle = color
         this.canvasContext.stroke()
         this.canvasContext.closePath()
     }
