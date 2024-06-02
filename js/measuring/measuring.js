@@ -240,7 +240,15 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     this._handleLaneResize(event);
                 }
                 this._handleMouseMove(event);
-                if (event.buttons == 1 && this._x && this._activeLane && this._resizingLaneIndex === undefined) {
+                if ((event.buttons == 1 || event.type == "mouseup") && event.target.classList.contains('lane')) {
+                    const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
+                    const lane = this._lanesWithTimes()[laneIndex];
+                    console.log("L", laneIndex, lane)
+                    if (lane) {
+                        this.scrollToTime(lane.time);
+                    }
+                }
+                else if (event.buttons == 1 && this._x && this._activeLane) {
                     this._activeLane.time = this._x;
                     this.requestUpdate();
                 }
