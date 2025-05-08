@@ -113,7 +113,7 @@ export const measuringCss = css`
   }
 
   .hud {
-    flex: 0 0 auto;
+    flex: 0 0 2.5em;
     padding: 0.3rem;
     background-color: #888888;
     display: flex;
