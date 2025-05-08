@@ -89,7 +89,7 @@ export const measuringCss = css`
   }
 
   .images-outer > .images > * {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     aspect-ratio: var(--perp-fc-image-ratio, auto);
     height: 100%;
   }
