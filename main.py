@@ -60,7 +60,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "-f", "--fps", type=int, default=30,
-    help="Frames per second to request from camera (default: 90pictures/second)",
+    help="Frames per second to request from camera (default: 30pictures/second)",
 )
 parser.add_argument(
     "-w", "--slot-width", type=int, default=2,

@@ -54,13 +54,19 @@ class TimeSpanGrabber:
             return
 
         while (time_passed := (time.time() - self.metadata["time_start"])) < self.grabber.time_span:
+            time_expected_next_grab = self.metadata["frame_count"] / self.grabber.fps
+            time_to_wait = time_expected_next_grab - time_passed
+            if time_to_wait > 0:
+                time.sleep(time_to_wait)
+                time_passed = time.time() - self.metadata["time_start"]
+                
             src = self.grabber.capture_frame()
             left = round(time_passed * self.grabber.fps * self.grabber.slot_width)
 
             max_slot_width = self.width - left
             middle_left = self.grabber.src_middle_left
             if self.metadata["frame_count"] == 0:
-                middle_left -= left # left should be 0... Take the left side when it isn't
+                middle_left -= left
                 left = 0
 
             slot = src[
@@ -73,7 +79,9 @@ class TimeSpanGrabber:
             self.metadata["frame_count"] += 1
             self.metadata["fps"] = self.metadata["frame_count"] / time_passed
 
-            self.grabber.hub.publish_threadsafe(live_image=self.img, live_raw_image=src, live_metadata=self.metadata)
+            self.grabber.hub.publish_threadsafe(
+                live_image=self.img, live_raw_image=src, live_metadata=self.metadata
+            )
 
         if self.metadata["fps"] > self.grabber.fps * 1.10:
             print(f"Real FPS ({self.metadata['fps']} f/s) allows higher requested FPS (current is {self.grabber.fps} f/s)")
@@ -245,8 +253,16 @@ class Grabber:
     def __init_video(self):
         self.video_capture = cv.VideoCapture(self.video_capture_index, cv.CAP_ANY)
         self.video_capture.set(cv.CAP_PROP_FPS, self.fps)
+        self.video_capture.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+        self.video_capture.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")
+    
+        actual_width = self.video_capture.get(cv.CAP_PROP_FRAME_WIDTH)
+        actual_height = self.video_capture.get(cv.CAP_PROP_FRAME_HEIGHT)
+        actual_fps = self.video_capture.get(cv.CAP_PROP_FPS)
+        print(f"Actual settings: {actual_width}x{actual_height} @ {actual_fps} FPS")
 
         # Detect frame size
         src = self.capture_frame()
