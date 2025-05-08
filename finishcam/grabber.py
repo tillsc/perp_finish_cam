@@ -7,7 +7,7 @@ import json
 import asyncio
 import concurrent.futures
 import logging
-
+import platform
 
 def create_task(
     hub, session_name, outdir,
@@ -59,7 +59,7 @@ class TimeSpanGrabber:
             if time_to_wait > 0:
                 time.sleep(time_to_wait)
                 time_passed = time.time() - self.metadata["time_start"]
-                
+
             src = self.grabber.capture_frame()
             left = round(time_passed * self.grabber.fps * self.grabber.slot_width)
 
@@ -251,7 +251,16 @@ class Grabber:
             
 
     def __init_video(self):
-        self.video_capture = cv.VideoCapture(self.video_capture_index, cv.CAP_ANY)
+        # Detect platform – use V4L2 with MJPEG on Linux, CAP_ANY elsewhere
+        is_linux = platform.system() == "Linux"
+        backend = cv.CAP_V4L2 if is_linux else cv.CAP_ANY
+        self.video_capture = cv.VideoCapture(self.video_capture_index, backend)
+
+        # Set MJPEG codec only on Linux (for higher FPS support)
+        if is_linux:
+            self.video_capture.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'MJPG'))
+
+        # Set resolution and desired FPS
         self.video_capture.set(cv.CAP_PROP_FPS, self.fps)
         self.video_capture.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
         self.video_capture.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
