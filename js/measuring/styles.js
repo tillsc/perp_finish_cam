@@ -113,12 +113,14 @@ export const measuringCss = css`
   }
 
   .hud {
-    flex: 0 0 2.5em;
+    height: 3em;
+    box-sizing: border-box;
     padding: 0.3rem;
     background-color: #888888;
     display: flex;
     justify-content: space-around;
     gap: 3rem;
+    overflow: hidden; /* falls nötig */
   }
 
   .hud .ranks {
