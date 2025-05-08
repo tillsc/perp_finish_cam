@@ -251,7 +251,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
                     const lane = this._lanes[laneIndex];
                     if (lane) {
-                        this.scrollToTime(addSeconds(lane.time, -5));
+                        this.scrollToTime(addSeconds(lane.time, -1));
                     }
                 }
                 else if (event.buttons == 1 && this._x && this._activeLane) {
