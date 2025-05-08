@@ -4,7 +4,7 @@ import { measuringCss } from './styles.js';
 import { SessionMetadataService } from './metadata.js';
 import './canvas.js';
 
-import {formatTime, timeDifferenceInMilliseconds, timeDifference, parseTime} from '../time.js';
+import {addSeconds, formatTime, timeDifferenceInMilliseconds, timeDifference, parseTime} from '../time.js';
 
 import '../live.js';
 
@@ -242,9 +242,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 this._handleMouseMove(event);
                 if ((event.buttons == 1 || event.type == "mouseup") && event.target.classList.contains('lane')) {
                     const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
-                    const lane = this._lanesWithTimes()[laneIndex];
+                    const lane = this._lanes[laneIndex];
                     if (lane) {
-                        this.scrollToTime(lane.time);
+                        this.scrollToTime(addSeconds(lane.time, -5));
                     }
                 }
                 else if (event.buttons == 1 && this._x && this._activeLane) {
