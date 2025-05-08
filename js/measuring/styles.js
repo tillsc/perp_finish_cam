@@ -126,7 +126,7 @@ export const measuringCss = css`
   .hud .ranks {
     display: flex;
     gap: 1rem;
-    text-align: right;
+    text-align: center;
   }
 `;
 
