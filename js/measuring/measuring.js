@@ -12,6 +12,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
     static properties = {
         href: {type: String},
         startTime: {type: String, attribute: 'start-time'},
+        instanceId: {type: String, attribute: 'instance-id'},
 
         // Internal properties
         _error: {type: String, state: true},
@@ -67,19 +68,38 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 this._lanes.push({text: "Lane ${index + 1}", ...base});
             }
         });
-        let stored = localStorage.getItem("laneHeightPercentages") || '[]';
+        this._loadLaneHeightPercentages();
+    }
+
+    _loadLocalStorageConfig() {
+        let stored = localStorage.getItem("perpFreezingCamConfig") || '{}';
         if (stored) {
             try {
                 stored = JSON.parse(stored);
             }
             catch (SyntaxError) {
-                stored = [];
+                stored = {};
             }
         }
+        return stored || {};
+    }
+
+    _getConfig() {
+        return this._loadLocalStorageConfig()[this.instanceId] || {};
+    }
+
+    _saveConfig(config) {
+        let data = this._loadLocalStorageConfig();
+        data[this.instanceId] = config;
+        localStorage.setItem("perpFreezingCamConfig", JSON.stringify(data));
+    }
+
+    _loadLaneHeightPercentages() {
+        const storedPercentages = this._getConfig()['laneHeightPercentages'] || [];
         this._laneHeightPercentages = this._lanes.map(lane => {
             let v = 100/this._lanes.length;
-            if (stored[lane.index]) {
-                v = stored[lane.index];
+            if (storedPercentages[lane.index]) {
+                v = storedPercentages[lane.index];
             }
             return v;
         });
@@ -87,6 +107,11 @@ class PerpFinishcamMeasuringElement extends LitElement {
         this._laneHeightPercentages = this._laneHeightPercentages.map(lh => lh * correctionFactor);
     }
 
+    _saveLaneHeightPercentages() {
+        let config = this._getConfig();
+        config['laneHeightPercentages'] = this._laneHeightPercentages;
+        this._saveConfig(config);
+    }
 
     render() {
         if (this._error) {
@@ -254,7 +279,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
             case 'mouseleave':
                 if (this._resizingLaneIndex !== undefined) {
                     this._resizingLaneIndex = undefined;
-                    localStorage.setItem("laneHeightPercentages", JSON.stringify(this._laneHeightPercentages));
+                    this._saveLaneHeightPercentages();
                 }
                 this._handleMouseMove(event);
                 event.preventDefault();

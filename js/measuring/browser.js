@@ -37,6 +37,7 @@ class PerpFinishcamBrowserElement extends LitElement {
                 <slot name="metadata" @slotchange="${this}" style="display: none;"></slot>
                 <perp-fc-measuring start-time="${this.startTime}"
                                    expected-at="${this.getAttribute('expected-at')}"
+                                   instance-id="${this.getAttribute('id')}"
                                    href="${this.sessionListService.buildUri(this.selectedSessionKey)}">
                     <slot></slot>
                 </perp-fc-measuring>
