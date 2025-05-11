@@ -113,9 +113,11 @@ export const measuringCss = css`
   }
 
   .hud {
-    height: 3em;
+    font-size: 1rem;
+    line-height: 1.2;
     box-sizing: border-box;
     padding: 0.3rem;
+    height: calc(1.2rem * 2 + 0.6rem); 
     background-color: #888888;
     display: flex;
     justify-content: space-around;
