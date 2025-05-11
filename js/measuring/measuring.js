@@ -201,8 +201,15 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
 
+    scrollTo(left) {
+        this.imagesRef.value.scrollTo({
+            left: left,
+            behavior: 'smooth'
+        });
+    }
+
     scrollToTime(time) {
-        this.imagesRef.value.scrollLeft = timeDifferenceInMilliseconds(time, this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() * this._currentScale;
+        this.scrollTo(timeDifferenceInMilliseconds(time, this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() * this._currentScale)
     }
 
     scrollToRight() {
