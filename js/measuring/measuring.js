@@ -243,27 +243,32 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 event.preventDefault();
                 break;
             case 'mouseup':
+                if (this._resizingLaneIndex === undefined && event.target.classList.contains('lane')) {
+                    const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
+                    const lane = this._lanes[laneIndex];
+                    if (lane?.time) {
+                        this.scrollToTime(addSeconds(lane.time, -1));
+                    }
+                }
+                // Intentional! no break;
             case 'mouseleave':
                 if (this._resizingLaneIndex !== undefined) {
                     this._resizingLaneIndex = undefined;
                     localStorage.setItem("laneHeightPercentages", JSON.stringify(this._laneHeightPercentages));
                 }
-               // Intentional! no break;
+                this._handleMouseMove(event);
+                event.preventDefault();
+                break;
             case 'mousemove':
+                this._handleMouseMove(event);
                 if (this._resizingLaneIndex !== undefined) {
                     this._handleLaneResize(event);
                 }
-                this._handleMouseMove(event);
-                if ((event.buttons == 1 || event.type == "mouseup") && event.target.classList.contains('lane')) {
-                    const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
-                    const lane = this._lanes[laneIndex];
-                    if (lane) {
-                        this.scrollToTime(addSeconds(lane.time, -1));
+                else {
+                    if (!event.target.classList.contains('lane') && event.buttons == 1 && this._x && this._activeLane) {
+                        this._activeLane.time = this._x;
+                        this.requestUpdate();
                     }
-                }
-                else if (event.buttons == 1 && this._x && this._activeLane) {
-                    this._activeLane.time = this._x;
-                    this.requestUpdate();
                 }
                 event.preventDefault();
                 break;
