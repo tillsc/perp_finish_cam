@@ -144,7 +144,11 @@ export const browserCss = css`
   }
     
   table td {
-  padding: 0.1rem 0.3rem;
+    padding: 0.1rem 0.3rem;
+  }
+  
+  table tr.expected {
+    background-color: #d4edda;
   }
   
   perp-fc-measuring {

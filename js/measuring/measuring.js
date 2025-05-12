@@ -68,7 +68,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 this._lanes.push({text: "Lane ${index + 1}", ...base});
             }
         });
-        this._loadLaneHeightPercentages();
+        this._initLaneHeightPercentages();
     }
 
     _loadLocalStorageConfig() {
@@ -94,17 +94,28 @@ class PerpFinishcamMeasuringElement extends LitElement {
         localStorage.setItem("perpFreezingCamConfig", JSON.stringify(data));
     }
 
-    _loadLaneHeightPercentages() {
+    _dispatchLaneHeightsChange() {
+        const event = new CustomEvent('laneheightschange', {
+            detail: {
+                laneHeights: this._laneHeightPercentages
+            },
+            bubbles: true,
+            composed: true
+        });
+        this.dispatchEvent(event);
+    }
+
+    _initLaneHeightPercentages() {
+        const outerMetadataLaneHeights = this.getRootNode()?.host?.closest('perp-fc-browser')?.getMetadataLaneHeights() || [];
         const storedPercentages = this._getConfig()['laneHeightPercentages'] || [];
         this._laneHeightPercentages = this._lanes.map(lane => {
-            let v = 100/this._lanes.length;
-            if (storedPercentages[lane.index]) {
-                v = storedPercentages[lane.index];
-            }
-            return v;
+            return outerMetadataLaneHeights[lane.index] ||
+                storedPercentages[lane.index] ||
+                100/this._lanes.length;
         });
         const correctionFactor = 100.0 / this._laneHeightPercentages.reduce((sum, lh) => sum + lh);
         this._laneHeightPercentages = this._laneHeightPercentages.map(lh => lh * correctionFactor);
+        this._dispatchLaneHeightsChange();
     }
 
     _saveLaneHeightPercentages() {
@@ -280,6 +291,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 if (this._resizingLaneIndex !== undefined) {
                     this._resizingLaneIndex = undefined;
                     this._saveLaneHeightPercentages();
+                    this._dispatchLaneHeightsChange();
                 }
                 this._handleMouseMove(event);
                 event.preventDefault();
