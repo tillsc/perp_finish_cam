@@ -1,7 +1,10 @@
+{% extends "layout.html.jinja" %}
+{% block title %}Perp Finishcam - Demo page{% endblock %}
+{% block head %}
 <script type="module" src="{{url_for('serve_js_file', path='measuring/index.js')}}"></script>
+{% endblock %}
 
-<a href="{{url_for('session', session_name=session_name)}}">To current session</a>
-
+{% block content %}
 <h2>Existing Sessions</h2>
 <perp-fc-browser href="/data" id="demo" style="--perp-fc-padding-top: 5rem;" start-time="{{start_time}}">
     <label slot="metadata">Metadata: <input></label>
@@ -14,4 +17,4 @@
     <label>2<input></label>
     <label>1<input></label>
 </perp-fc-browser>
-
+{% endblock %}

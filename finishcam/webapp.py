@@ -33,13 +33,6 @@ async def home():
         start_time=app.virtual_start_time
     )
 
-@app.route("/sessions/<string:session_name>")
-async def session(session_name):
-    return await render_template(
-        "session.html.jinja", 
-        session_name=session_name
-    )
-
 @app.route("/data/<path:path>")
 async def serve_data_file(path):
     logging.info("Serving data: %s/%s", app.outdir, path)

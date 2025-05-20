@@ -1,9 +1,0 @@
-{% extends "layout.html.jinja" %}
-{% block head %}
-<script type="module" src="{{url_for('serve_js_file', path='measuring/index.js')}}"></script>
-{% endblock %}
-
-{% block content %}
-<perp-fc-measuring href="{{url_for('serve_data_file', path=session_name)}}" style="--perp-fc-padding-top: 5rem;">
-</perp-fc-measuring>
-{% endblock %}
