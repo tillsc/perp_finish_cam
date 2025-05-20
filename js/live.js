@@ -34,6 +34,7 @@ class PerpFinishcamLiveElement extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.webservice?.close();
         this.objectURLHistory.forEach((historyElement) => {
             if (historyElement) {
                 URL.revokeObjectURL(historyElement);
@@ -103,7 +104,7 @@ class PerpFinishcamLiveElement extends HTMLElement {
             img.timeStart = this.timeStartHistory[index];
         }
         for (let index = (to - from + 1); index < imgs.length; index++) {
-          imgs[index].remove();  
+          imgs[index]?.remove();  
         }
     }
 

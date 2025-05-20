@@ -12,11 +12,13 @@ class PerpFinishcamMeasuringElement extends LitElement {
     static properties = {
         href: {type: String},
         startTime: {type: String, attribute: 'start-time'},
+        expectedAt: {type: String, attribute: 'expected-at'},
         instanceId: {type: String, attribute: 'instance-id'},
-
+    
         // Internal properties
         _error: {type: String, state: true},
 
+        _autoplay: {type: Boolean},
         _lanes: {type: Array, state: true},
         _laneHeightPercentages: {type: Array, state: true},
         _activeLane: {type: Object, state: true},
@@ -45,6 +47,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
         super.connectedCallback();
 
         this.sessionMetadataService.start(this.href);
+        this.live = 
         new ResizeObserver(() => this._afterRender(true))
           .observe(this);
     }
@@ -177,8 +180,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
                 
                 <div class="hud">
-                    <div>Time: ${formatTime(this._x)} ${this.startTime ? `(${formatTime(timeDifference(this._x, new Date(this.startTime)), true)})` : ''}</div>
-                    <div>Lane: ${this._activeLane?.text}</div>
+                    ${this.renderControls()}
+                    <div class="time">Time: ${formatTime(this._x)} ${this.startTime ? html`<br>${formatTime(timeDifference(this._x, new Date(this.startTime)), true)}` : ''}</div>
+                    <div class="lane">Lane: ${this._activeLane?.text}</div>
                     <div class="ranks">${this._lanesWithTimes().map((l) => {
                         const res = html`<div title="${formatTime(timeDifference(l.time, new Date(this.startTime)), true)}">
                                 ${l.text}<br>
@@ -186,7 +190,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                                 <button title="Delete" @click="${() => {
                                         l.time = undefined; 
                                         this.requestUpdate(); 
-                                    }}">x</button>
+                                    }}">🗑</button>
                             </div>`;
                         lastTime = l.time;
                         return res;
@@ -194,6 +198,22 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 </div>
             </div>
         `;
+    }
+
+    renderControls() {
+        const playPause = this.sessionMetadataService.isLive() ? 
+            html`<button @click="${() => this._autoplay = !this._autoplay}">
+                ${this._autoplay ? '⏸' : '▶'}</button>` : '';
+        
+        const jumpToMostRelevant = this.sessionMetadataService.expectedAt ? 
+            html`<button @click="${() => this.scrollToTime(parseTime(this.expectedAt, this.sessionMetadataService.timeStart()))}}">
+                ⏲</button>` : '';
+        return html`<div class="buttons">
+                        <button @click="${() => { this._autoplay = false; this.scrollTo(0); }}">⏮</button>
+                        ${playPause}
+                        ${jumpToMostRelevant}
+                        <button @click="${() => { this._autoplay = false; this.scrollToRight(); }}">⏭</button>
+                    </div>`;
     }
 
     _lanesWithTimes() {
@@ -226,22 +246,29 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 if (firstTime) {
                     this.scrollToTime(firstTime);
                 }
-                else if (this.getAttribute('expected-at')) {
-                    const expectedAt = parseTime(this.getAttribute('expected-at'), this.sessionMetadataService.timeStart());
-                    this.scrollToTime(expectedAt);
+                else if (this.expectedAt) {
+                    this.scrollToTime(parseTime(this.expectedAt, this.sessionMetadataService.timeStart()));
                 }
                 else if (this.sessionMetadataService.isLive()) {
+                    this._autoplay = true;
                     this.scrollToRight();
                 }
             }, 500);
+        } 
+        else {
+            if (this._autoplay && this.sessionMetadataService.isLive()) {
+                this.scrollToRight();
+            }
         }
     }
 
     scrollTo(left) {
-        this.imagesRef.value.scrollTo({
-            left: left,
-            behavior: 'smooth'
-        });
+        if (left !== undefined) {
+            this.imagesRef.value.scrollTo({
+                left: left,
+                behavior: 'smooth'
+            });
+        }
     }
 
     scrollToTime(time) {
@@ -249,7 +276,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     scrollToRight() {
-        this.imagesRef.value.scrollLeft = this.imagesRef.value.scrollWidth;
+        this.scrollTo(this.imagesRef?.value?.scrollWidth);
     }
 
     handleEvent(event) {
@@ -269,10 +296,8 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 else {
                     this._handleMouseMove(event);
                     if (this._x && this._activeLane) {
-                        this._activeLane.time = this._x;
-                        if (this._activeLane.input) {
-                            this._activeLane.input.value = formatTime(this._x);
-                        }
+                        this._autoplay = false;
+                        this._stopTime(this._x, this._activeLane);
                         this.requestUpdate();
                     }
                 }
@@ -283,6 +308,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
                     const lane = this._lanes[laneIndex];
                     if (lane?.time) {
+                        this._autoplay = false;
                         this.scrollToTime(addSeconds(lane.time, -1));
                     }
                 }
@@ -303,12 +329,19 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 }
                 else {
                     if (!event.target.classList.contains('lane') && event.buttons == 1 && this._x && this._activeLane) {
-                        this._activeLane.time = this._x;
+                        this._stopTime(this._x, this._activeLane);
                         this.requestUpdate();
                     }
                 }
                 event.preventDefault();
                 break;
+        }
+    }
+
+    _stopTime(x, activeLane) {
+        activeLane.time = x;
+        if (activeLane.input) {
+            activeLane.input.value = formatTime(x);
         }
     }
 

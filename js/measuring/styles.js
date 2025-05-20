@@ -119,10 +119,19 @@ export const measuringCss = css`
     padding: 0.3rem;
     height: calc(1.2rem * 2 + 0.6rem); 
     background-color: #888888;
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: auto auto auto 1fr;
+
     gap: 3rem;
     overflow: hidden; /* falls nötig */
+  }
+
+  .hud button {
+    min-width: 2rem;
+  }
+
+  .hud .time {
+    text-align: right;
   }
 
   .hud .ranks {
