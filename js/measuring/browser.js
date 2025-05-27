@@ -115,8 +115,9 @@ class PerpFinishcamBrowserElement extends LitElement {
                 if (this._metadataInput?.value) {
                     try {
                         const data = JSON.parse(this._metadataInput.value);
-                        if (data.session_name && this.sessionListService. sessionKeys().includes(data.session_name)) {
-                            this.selectedSessionKey = data.session_name;
+                        const preselectedSession = data.session?.session_name;
+                        if (preselectedSession && this.sessionListService.sessionKeys().includes(preselectedSession)) {
+                            this.selectedSessionKey = preselectedSession;
                         }
                     }
                     catch {
