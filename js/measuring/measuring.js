@@ -188,7 +188,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                                 ${l.text}<br>
                                 ${lastTime ? '+' + formatTime(timeDifference(l.time, lastTime), true) : formatTime(timeDifference(l.time, new Date(this.startTime)), true)}
                                 <button title="Delete" @click="${() => {
-                                        l.time = undefined; 
+                                        this._stopTime(undefined, l);
                                         this.requestUpdate(); 
                                     }}">🗑</button>
                             </div>`;
@@ -341,7 +341,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
     _stopTime(x, activeLane) {
         activeLane.time = x;
         if (activeLane.input) {
-            activeLane.input.value = formatTime(x);
+            activeLane.input.value = x ? formatTime(x) : '';
         }
     }
 
