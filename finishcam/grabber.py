@@ -114,6 +114,7 @@ class Grabber:
         self.left_to_right = left_to_right
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
+        self.resolution = kwargs.get("resolution", "hd")
         self.video_capture_index = kwargs.get("video_capture_index", 0)
         self.stamp_options = {
             "time": kwargs.get("stamp_time", True),
@@ -261,9 +262,22 @@ class Grabber:
             self.video_capture.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'MJPG'))
 
         # Set resolution and desired FPS
+        resolutions = {
+            "qvga": (320, 240),
+            "vga": (640, 480),
+            "svga": (800, 600),
+            "xga": (1024, 768),
+            "wxga": (1280, 800),
+            "hd": (1280, 720),
+            "sxga": (1280, 1024),
+            "uxga": (1600, 1200),
+            "fullhd": (1920, 1080),
+            "4k": (3840, 2160),
+        }
+        width, height = resolutions[self.resolution]
         self.video_capture.set(cv.CAP_PROP_FPS, self.fps)
-        self.video_capture.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
-        self.video_capture.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+        self.video_capture.set(cv.CAP_PROP_FRAME_WIDTH, width)
+        self.video_capture.set(cv.CAP_PROP_FRAME_HEIGHT, height)
 
         if not self.video_capture.isOpened():
             raise VideoException("Cannot open camera")

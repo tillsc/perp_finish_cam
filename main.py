@@ -25,6 +25,7 @@ async def start(args):
             webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             video_capture_index=args.video_capture_index,
+            resolution=args.resolution,
             debug=args.debug
         ))
         if args.preview:
@@ -65,6 +66,17 @@ parser.add_argument(
 parser.add_argument(
     "-w", "--slot-width", type=int, default=2,
     help="Default slot width when camera provides requested FPS (default: 2px)",
+)
+parser.add_argument(
+    "-r", "--resolution",
+    choices=["qvga", "vga", "svga", "xga", "wxga", "hd", "sxga", "uxga", "fullhd", "4k"],
+    default="hd",
+    help=(
+        "Set resolution (default: hd = 1280x720). Options: "
+        "qvga (320x240), vga (640x480), svga (800x600), xga (1024x768), "
+        "wxga (1280x800), hd (1280x720), sxga (1280x1024), "
+        "uxga (1600x1200), fullhd (1920x1080), 4k (3840x2160)"
+    )
 )
 parser.add_argument(
     "-i", "--video-capture-index", type=int, default=0,
