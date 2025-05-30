@@ -3,12 +3,17 @@ import asyncio
 import logging
 import sys
 import time
+import signal
 
 import finishcam.grabber
 import finishcam.webapp
 import finishcam.preview
 import finishcam.pubsub
 
+def handle_shutdown():
+    print("Shutdown requested via SIGINT")
+    for task in asyncio.all_tasks():
+        task.cancel()
 
 async def start(args):
     loglevel = logging.DEBUG if args.debug else logging.INFO
@@ -16,6 +21,9 @@ async def start(args):
 
     hub = finishcam.pubsub.Hub()
     session_name = time.strftime("%Y%m%d-%H%M%S")
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, handle_shutdown)
 
     tasks = []
     if not args.no_capture:
