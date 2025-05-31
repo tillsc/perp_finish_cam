@@ -361,8 +361,12 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
     _handleMouseMove(event) {
-        this.canvasRef.value?.drawLiveCrosshair(event.pageX - this.boundingBox.left, event.pageY - this.boundingBox.top, this._activeLane?.time ? '#c33' : '#000');
-
+        const canvas = this.canvasRef.value;
+        if (canvas) {
+            const canvasBounds = canvas.getBoundingClientRect();
+            canvas.drawLiveCrosshair(event.clientX - canvasBounds.left, event.clientY - canvasBounds.top, this._activeLane?.time ? '#c33' : '#000');
+        }
+        
         if (this.boundingBoxFirstImage) {
           this._x = this.sessionMetadataService.timeStart((event.pageX - this.boundingBoxFirstImage.left) / this.boundingBoxFirstImage.width);
         }
