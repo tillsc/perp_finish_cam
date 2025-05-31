@@ -30,7 +30,8 @@ async def home():
     return await render_template(
         "index.html.jinja", 
         session_name=app.session_name, last_image_url=last_image_url,
-        start_time=app.virtual_start_time
+        start_time=app.virtual_start_time,
+        demo_time=datetime.now().strftime("%H:%M:%S.123"),
     )
 
 @app.route("/data/<path:path>")
