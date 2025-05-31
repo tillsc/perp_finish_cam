@@ -172,7 +172,7 @@ class Grabber:
         if not ret:
             raise VideoException("Can't receive frame")
 
-        if not self.left_to_right:
+        if self.left_to_right:
             src = cv.flip(src, 1)
         return src
 
