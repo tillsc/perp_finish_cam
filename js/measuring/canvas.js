@@ -38,9 +38,20 @@ class PerpFinishcamMeasuringCanvasElement extends HTMLElement {
         this.canvas.style.pointerEvents = 'none';
 
         let resizer = new ResizeObserver(([entry]) => {
-            // `<canvas>` requires explicit dimensions
-            const { inlineSize: width, blockSize: height } = entry.borderBoxSize[0];
-            Object.assign(this.canvas, { width, height });
+            const dpr = window.devicePixelRatio || 1;
+            const width = entry.contentRect.width;
+            const height = entry.contentRect.height;
+
+            // Set canvas size in physical pixels
+            this.canvas.width = width * dpr;
+            this.canvas.height = height * dpr;
+
+            // Set CSS size (logical pixels)
+            this.canvas.style.width = `${width}px`;
+            this.canvas.style.height = `${height}px`;
+
+            // Scale context for high DPI displays
+            this.canvasContext.setTransform(dpr, 0, 0, dpr, 0, 0);
         });
         resizer.observe(this.canvas);
     }
