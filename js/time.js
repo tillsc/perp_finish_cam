@@ -54,9 +54,22 @@ export function formatTime(date, optionalHours) {
     }
 }
 
-export function parseTime(timeString, baseDate) {
+export function parseTime2(timeString, baseDate) {
     baseDate = baseDate || new Date();
     return new Date(`${baseDate.toDateString()} ${timeString}`)
+}
+
+export function parseTime(timeString, baseDate = new Date()) {
+    const [h = "0", m = "0", s = "0"] = timeString.split(":");
+    const [sh, sm] = s.split(".");
+    const ms = sm ? parseInt((sm + "00").slice(0, 3)) : 0;
+
+    const date = new Date(baseDate);
+    date.setHours(+h);
+    date.setMinutes(+m);
+    date.setSeconds(+sh || 0);
+    date.setMilliseconds(ms);
+    return date;
 }
 
 function _zpad(value, digits = 2) {
