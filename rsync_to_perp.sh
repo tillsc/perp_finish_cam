@@ -3,25 +3,29 @@
 # Lokale Verzeichnisse
 SRC_DIRS="data js"
 
-# Ziel-Host und -Basisverzeichnis
+# SSH-Zugangsdaten
+REMOTE_USER="root"
 REMOTE_HOST="perp.de"
-REMOTE_BASE_DIR="./www/trsnet.de/httpdocs/perp_finish_cam_data"
 
-# Hostname der lokalen Maschine
+# Zielbasisverzeichnis auf dem Remote-Host
+REMOTE_BASE_DIR="/root/www/trsnet.de/httpdocs/perp_finish_cam_data"
+
+# Lokale Informationen
 LOCAL_HOSTNAME=$(hostname)
+CURRENT_YEAR=$(date +"%Y")
 
-# Aktuelles Jahr
-DATE_DIR=$(date +"%Y")
+# Zusammensetzen des Remote-Zielpfads
+REMOTE_TARGET="${REMOTE_BASE_DIR}/${LOCAL_HOSTNAME}/${CURRENT_YEAR}"
 
-# Zielverzeichnis auf dem Remote-Host
-REMOTE_DIR="${REMOTE_BASE_DIR}/${LOCAL_HOSTNAME}/${DATE_DIR}"
+# Erstellt das Zielverzeichnis auf dem Remote-Host, falls nicht vorhanden
+ssh ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p '${REMOTE_TARGET}/data' '${REMOTE_TARGET}/js'"
 
-# rsync-Befehl mit --delete und -avz für Archivmodus, Kompression und ausführliche Ausgabe
+# rsync-Befehl für jedes Quellverzeichnis
 for DIR in $SRC_DIRS; do
   if [ -d "$DIR" ]; then
-    echo "Synchronisiere $DIR nach ${REMOTE_HOST}:${REMOTE_DIR}/$DIR"
-    rsync -avz --delete "$DIR/" "${REMOTE_HOST}:${REMOTE_DIR}/$DIR/"
+    echo "→ Synchronisiere '$DIR' nach ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_TARGET}/$DIR"
+    rsync -avz --delete "$DIR/" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_TARGET}/$DIR/"
   else
-    echo "Warnung: Verzeichnis '$DIR' existiert nicht und wird übersprungen."
+    echo "⚠️  Warnung: Verzeichnis '$DIR' existiert nicht und wird übersprungen."
   fi
 done
