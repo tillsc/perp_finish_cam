@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "perp-finish-cam"
-version = "0.1.0"
-description = "Software based slot cam for finish photos"
+version = "1.0.0"
+description = "Software-based slot camera system for finish-line photography"
 authors = ["Till Schulte-Coerne <till@perp.de>"]
-license = "Apache-2.0"
+license = "PolyForm-Noncommercial-1.0.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -12,7 +12,6 @@ requests = "^2.31.0"
 opencv-python = "^4.9.0.80"
 numpy = "^1.26.3"
 quart = "^0.19.4"
-
 
 [build-system]
 requires = ["poetry-core"]
