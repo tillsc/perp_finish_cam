@@ -5,7 +5,6 @@ import logging
 
 import finishcam.pubsub
 
-
 def create_task(hub):
     return asyncio.create_task(start(hub))
 

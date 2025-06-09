@@ -1,6 +1,4 @@
 import asyncio
-import logging
-
 
 class Hub:
     def __init__(self):
