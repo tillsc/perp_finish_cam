@@ -10,6 +10,9 @@ import finishcam.webapp
 import finishcam.preview
 import finishcam.pubsub
 
+from finishcam.logfilters import apply_asyncio_ssl_filter
+apply_asyncio_ssl_filter()
+
 def handle_shutdown():
     print("Shutdown requested via SIGINT")
     for task in asyncio.all_tasks():
