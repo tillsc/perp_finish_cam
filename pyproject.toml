@@ -5,6 +5,7 @@ description = "Software-based slot camera system for finish-line photography"
 authors = ["Till Schulte-Coerne <till@perp.de>"]
 license = "PolyForm-Noncommercial-1.0.0"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
