@@ -1,13 +1,13 @@
-import numpy as np
 import cv2 as cv
 import time
 import math
 import os
 import json
 import asyncio
-import concurrent.futures
 import logging
 import platform
+
+from finishcam.timespan_grabber import TimeSpanGrabber
 
 def create_task(
     hub, session_name, outdir,
@@ -24,79 +24,7 @@ class VideoException(Exception):
     "Exception raised on problems with video capture"
     pass
 
-
-class TimeSpanGrabber:
-    def __init__(self, grabber, time_start, index):
-        self.grabber = grabber
-
-        self.width = self.grabber.time_span * self.grabber.fps * self.grabber.slot_width
-        self.height = self.grabber.src_height
-        self.img = np.full((self.height, self.width, 3), (200, 200, 200), np.uint8)
-        self.metadata = {
-            "session_name": self.grabber.session_name,
-            "time_start": time_start,
-            "time_span": self.grabber.time_span,
-            "index": index,
-            "height": self.height,
-            "frame_count": 0,
-            "fps": 0,
-        }
-
-        self.done = False
-        self.exit_after = False
-
-    def run(self):
-        if self.grabber.test_mode != None:
-            self.__takeTestImage()
-            if self.grabber.test_mode <= self.metadata["index"]:
-                self.exit_after = True
-            self.done = True
-            return
-
-        while (time_passed := (time.time() - self.metadata["time_start"])) < self.grabber.time_span:
-            time_expected_next_grab = self.metadata["frame_count"] / self.grabber.fps
-            time_to_wait = time_expected_next_grab - time_passed
-            if time_to_wait > 0:
-                time.sleep(time_to_wait)
-                time_passed = time.time() - self.metadata["time_start"]
-
-            src = self.grabber.capture_frame()
-            left = round(time_passed * self.grabber.fps * self.grabber.slot_width)
-
-            max_slot_width = self.width - left
-            middle_left = self.grabber.src_middle_left
-            if self.metadata["frame_count"] == 0:
-                middle_left -= left
-                left = 0
-
-            slot = src[
-                0:,
-                middle_left : min(self.grabber.src_width, middle_left + max_slot_width),
-            ]
-
-            self.img[0:, left : left + slot.shape[:2][1]] = slot
-
-            self.metadata["frame_count"] += 1
-            self.metadata["fps"] = self.metadata["frame_count"] / time_passed
-
-            self.grabber.hub.publish_threadsafe(
-                live_image=self.img, live_raw_image=src, live_metadata=self.metadata
-            )
-
-        if self.metadata["fps"] > self.grabber.fps * 1.10:
-            print(f"Real FPS ({self.metadata['fps']} f/s) allows higher requested FPS (current is {self.grabber.fps} f/s)")
-        if self.metadata["fps"] < self.grabber.fps * 0.90:
-            print(f"Real FPS ({self.metadata['fps']} f/s) is much lower then requested FPS ({self.grabber.fps} f/s)")
-
-        self.done = True
-
-    def __takeTestImage(self):
-        self.img[:] = ((self.metadata["index"] * 11 % 360), 50, 255)
-        self.img = cv.cvtColor(self.img, cv.COLOR_HLS2RGB)
-
-
 STAMPS_COLOR = (100, 255, 100)
-
 
 class Grabber:
     def __init__(
@@ -135,33 +63,42 @@ class Grabber:
     async def start_capture(self):
         self.time_first_start = time.time()
         i = 0
+
+        # Start the first capture in advance
         current_capture = TimeSpanGrabber(
             self, self.time_first_start + (i * self.time_span), i
         )
+        wait_tasks = [asyncio.to_thread(current_capture.run)]
         last_capture = None
+
         self.__write_metadata_jsons(None)
-        
+
         logging.debug("Enter capture loop")
         while not asyncio.current_task().done():
-            capture_future = asyncio.to_thread(current_capture.run)
-
-            # Running paralell now
+            # Prepare and start the next capture
             next_capture = TimeSpanGrabber(
                 self, self.time_first_start + ((i + 1) * self.time_span), i + 1
             )
+            next_capture_future = asyncio.to_thread(next_capture.run)
 
-            if last_capture != None:
-                await asyncio.to_thread(self.__postprocess_capture, last_capture)
+            # Add postprocessing if this isn't the first round
+            if last_capture:
+                wait_tasks.append(asyncio.create_task(
+                    asyncio.to_thread(self.__postprocess_capture, last_capture)
+                ))
 
             try:
-                await capture_future
+                await asyncio.gather(*wait_tasks)
             except asyncio.CancelledError:
                 break
 
             if current_capture.exit_after:
                 break
+
+            # Rotate
             last_capture = current_capture
             current_capture = next_capture
+            wait_tasks = [next_capture_future]
             i += 1
 
     def capture_frame(self):
