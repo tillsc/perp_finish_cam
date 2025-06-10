@@ -24,6 +24,16 @@ class VideoException(Exception):
 STAMPS_COLOR = (100, 255, 100)
 
 class Grabber:
+    """
+    Controls the full image capture loop.
+
+    Initializes and manages the video device, starts a sequence of
+    TimeSpanGrabber runs, and handles postprocessing and output
+    (including stamping, encoding, and metadata writing).
+
+    Designed for continuous, slice-based image acquisition over time.
+    """
+
     def __init__(self, hub, session_name, outdir, time_span, fps, slot_width, left_to_right, shutdown_event: asyncio.Event, **kwargs):
         self.video_capture = None
         self.video_capture_lock = threading.Lock()  # needed because .read() runs in threads

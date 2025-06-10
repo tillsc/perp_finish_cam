@@ -1,40 +1,51 @@
 import cv2 as cv
-
 import asyncio
 import logging
 
 import finishcam.pubsub
 
-def create_task(hub):
-    return asyncio.create_task(start(hub))
+# Defines all supported preview modes and their corresponding Hub keys and window titles
+PREVIEW_MODES = {
+    "raw": ("live_raw_image", "Raw image"),
+    "live": ("live_image", "Live image"),
+    "final": ("image", "Last image"),
+}
 
+def create_task(hub, modes):
+    """Creates and starts the live preview task."""
+    return asyncio.create_task(start(hub, modes))
 
-async def start(hub):
+async def start(hub, modes: set[str]):
+    """
+    Continuously displays live preview windows for raw and processed images.
+
+    Uses pubsub events to detect new frames and displays them in OpenCV windows.
+    Exits when the current asyncio task is cancelled or 'q' is pressed.
+    """
     logging.debug("Enter preview loop")
+    modes_to_show = {
+        key: title for mode, (key, title) in PREVIEW_MODES.items() if mode in modes
+    }
+    
     with finishcam.pubsub.Subscription(hub) as event:
         while not asyncio.current_task().done():
             await event.wait()
-            for (field_name, window_name) in {
-                "live_raw_image": "Raw image",
-                "live_image": "Live image",
-               # "image": "Last image"
-            }.items():
-                if field_name in hub.data:
-                    img = hub.data.get(field_name).copy()
 
-                    if field_name == "live_raw_image":
-                        # draw a semi-transparent green vertical line in the center
+            for field, window in modes_to_show.items():
+                if field in hub.data:
+                    img = hub.data[field].copy()
+
+                    if field == "live_raw_image":
+                        # Draw semi-transparent green center line
                         h, w = img.shape[:2]
                         overlay = img.copy()
                         center_x = w // 2
-                        line_width = 2
-                        cv.line(overlay, (center_x, 0), (center_x, h), (0, 255, 0), thickness=line_width)
-                        alpha = 0.4  # transparency factor
-                        cv.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+                        cv.line(overlay, (center_x, 0), (center_x, h), (0, 255, 0), 2)
+                        cv.addWeighted(overlay, 0.4, img, 0.6, 0, img)
 
-                    cv.imshow(window_name, img)
+                    cv.imshow(window, img)
 
             if cv.waitKey(10) == ord("q"):
-                return
+                return  # allow quitting preview with 'q'
 
             event.clear()

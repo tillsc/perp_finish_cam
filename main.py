@@ -53,8 +53,8 @@ async def start(args):
             resolution=args.resolution,
             debug=args.debug
         ))
-        if args.preview:
-            tasks.append(finishcam.preview.create_task(hub))
+        if args.preview is not None:
+            tasks.append(finishcam.preview.create_task(hub, modes=(args.preview or ["raw", "live"])))
     if not args.no_webserver:
         tasks.append(finishcam.webapp.create_task(hub, session_name, args.outdir, shutdown_event))
 
@@ -87,7 +87,10 @@ def main():
         prog="perp_finish_cam", description="Takes slot cam based images and stores them"
     )
     parser.add_argument("outdir", default="data", nargs="?", help="Output directory (default: './data')")
-    parser.add_argument("-p", "--preview", action="store_true", help="Show live preview windows")
+    parser.add_argument("-p", "--preview", nargs="*", default=None,
+                        choices=["live", "final", "raw"],
+                        help="Choose preview modes: live, final, raw (default: live + raw if flag is set without values)"
+    )
     parser.add_argument("-l", "--left-to-right", action="store_true",
                         help="Race is coming from the left (default: from the right)")
     parser.add_argument("-t", "--time-span", type=int, default=10,
