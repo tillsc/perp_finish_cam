@@ -52,7 +52,11 @@ class TimeSpanGrabber:
             time_expected_next_grab = self.metadata["frame_count"] / self.grabber.fps
             time_to_wait = time_expected_next_grab - time_passed
             if time_to_wait > 0:
-                time.sleep(time_to_wait)
+                try:
+                    self._interrupted_sleep(time_to_wait)
+                except InterruptedError:
+                    self.done = True
+                    return
                 time_passed = time.time() - self.metadata["time_start"]
 
             src = self.grabber.capture_frame()
@@ -84,6 +88,22 @@ class TimeSpanGrabber:
             print(f"Real FPS ({self.metadata['fps']} f/s) is much lower then requested FPS ({self.grabber.fps} f/s)")
 
         self.done = True
+
+    def _interrupted_sleep(self, seconds, tick=0.2):
+        """
+        Sleeps in small intervals to allow interruption via shutdown_event.
+
+        Instead of blocking for the full duration, this method sleeps in short chunks 
+        and checks whether self.grabber.shutdown_event has been set. 
+        If shutdown is requested, it raises InterruptedError immediately.
+        """
+        slept = 0.0
+        while slept < seconds:
+            if self.grabber.shutdown_event.is_set():
+                raise InterruptedError("Sleep interrupted by shutdown_event")
+            time_to_sleep = min(tick, seconds - slept)
+            time.sleep(time_to_sleep)
+            slept += time_to_sleep
 
     def __takeTestImage(self):
         self.img[:] = ((self.metadata["index"] * 11 % 360), 50, 255)

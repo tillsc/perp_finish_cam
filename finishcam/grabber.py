@@ -4,6 +4,7 @@ import math
 import os
 import json
 import asyncio
+import threading
 import logging
 import platform
 
@@ -11,11 +12,11 @@ from finishcam.timespan_grabber import TimeSpanGrabber
 
 def create_task(
     hub, session_name, outdir,
-    time_span, fps, slot_width, left_to_right, **kwargs
+    time_span, fps, slot_width, left_to_right, shutdown_event, **kwargs
     ):
     gr = Grabber(
         hub, session_name, outdir,
-        time_span, fps, slot_width, left_to_right, **kwargs,
+        time_span, fps, slot_width, left_to_right, shutdown_event, **kwargs,
     )
     return asyncio.create_task(gr.start())
 
@@ -29,9 +30,9 @@ STAMPS_COLOR = (100, 255, 100)
 class Grabber:
     def __init__(
         self, hub, session_name, outdir,
-        time_span, fps, slot_width, left_to_right, **kwargs,
+        time_span, fps, slot_width, left_to_right, shutdown_event: asyncio.Event, **kwargs,
     ):
-        self.video_capture = False
+        self.video_capture = None
 
         self.hub = hub
         self.session_name = session_name
@@ -40,9 +41,11 @@ class Grabber:
         self.fps = fps
         self.slot_width = slot_width
         self.left_to_right = left_to_right
+        self.shutdown_event = shutdown_event
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
         self.resolution = kwargs.get("resolution", "hd")
+        self.capture_lock = threading.Lock()
         self.video_capture_index = kwargs.get("video_capture_index", 0)
         self.stamp_options = {
             "time": kwargs.get("stamp_time", True),
@@ -56,9 +59,10 @@ class Grabber:
 
         self.__init_video()
 
-        await self.start_capture()
-
-        self.__stop_video()
+        try:
+            await self.start_capture()
+        finally:
+            self.__stop_video()
 
     async def start_capture(self):
         self.time_first_start = time.time()
@@ -89,7 +93,11 @@ class Grabber:
 
             try:
                 await asyncio.gather(*wait_tasks)
-            except asyncio.CancelledError:
+            except asyncio.CancelledError:    
+                try:
+                    await next_capture_future
+                except Exception:
+                    pass  # ignore cleanup errors
                 break
 
             if current_capture.exit_after:
@@ -102,12 +110,13 @@ class Grabber:
             i += 1
 
     def capture_frame(self):
-        if not self.video_capture:
+        if self.video_capture is None or not self.video_capture.isOpened():
             raise VideoException("Video is closed")
 
-        ret, src = self.video_capture.read()
-        if not ret:
-            raise VideoException("Can't receive frame")
+        with self.capture_lock:
+            ret, src = self.video_capture.read()
+            if not ret:
+                raise VideoException("Can't receive frame")
 
         if self.left_to_right:
             src = cv.flip(src, 1)
@@ -232,5 +241,7 @@ class Grabber:
 
     def __stop_video(self):
         if self.video_capture:
-            self.video_capture.release()
+            with self.capture_lock:
+                self.video_capture.release()
+            self.video_capture = None
         cv.destroyAllWindows()
