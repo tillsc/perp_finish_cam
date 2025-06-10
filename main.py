@@ -10,8 +10,10 @@ import finishcam.webapp
 import finishcam.preview
 import finishcam.pubsub
 
-from finishcam.logfilters import apply_asyncio_ssl_filter
-apply_asyncio_ssl_filter()
+from finishcam.logfilters import apply_shutdown_log_filter
+
+# Suppress known noisy log entries (harmless shutdown-related warnings)
+apply_shutdown_log_filter()
 
 def handle_shutdown():
     print("Shutdown requested via SIGINT")
