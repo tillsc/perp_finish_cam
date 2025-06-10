@@ -51,6 +51,7 @@ async def start(args):
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             video_capture_index=args.video_capture_index,
             resolution=args.resolution,
+            enable_ai_image=not args.no_ai,
             debug=args.debug
         ))
         if args.preview is not None:
@@ -88,8 +89,8 @@ def main():
     )
     parser.add_argument("outdir", default="data", nargs="?", help="Output directory (default: './data')")
     parser.add_argument("-p", "--preview", nargs="*", default=None,
-                        choices=["live", "final", "raw"],
-                        help="Choose preview modes: live, final, raw (default: live + raw if flag is set without values)"
+                        choices=["live", "final", "raw", "ai_input_image", "raw_ai_input_image", "ai_output_image"],
+                        help="Choose preview modes: live, final, raw, ai_input_image, raw_ai_input_image, ai_output_image (default: live + raw if flag is set without values)"
     )
     parser.add_argument("-l", "--left-to-right", action="store_true",
                         help="Race is coming from the left (default: from the right)")
@@ -116,6 +117,8 @@ def main():
                         help="Disable capturing (webserver only)")
     parser.add_argument("--no-webserver", action="store_true",
                         help="Disable webserver (capturing only)")
+    parser.add_argument("--no-ai", action="store_true",
+                        help="Disable AI for automatic boattip detection")
     parser.add_argument("--debug", action="store_true", help="Start in debug mode (very noisy)")
 
     try:

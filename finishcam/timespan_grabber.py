@@ -61,16 +61,18 @@ class TimeSpanGrabber:
 
             src = self.grabber.capture_frame()
             left = round(time_passed * self.grabber.fps * self.grabber.slot_width)
-
-            max_slot_width = self.width - left
             middle_left = self.grabber.src_middle_left
+
+            self.grabber.update_ai_image(src[0:, middle_left : self.grabber.src_width], left, self.width)
+           
             if self.metadata["frame_count"] == 0:
                 middle_left -= left
                 left = 0
 
+            max_slot_width = self.width - left
             slot = src[
                 0:,
-                middle_left : min(self.grabber.src_width, middle_left + max_slot_width),
+                middle_left : min(self.grabber.src_width, middle_left + max_slot_width)
             ]
 
             self.img[0:, left : left + slot.shape[:2][1]] = slot

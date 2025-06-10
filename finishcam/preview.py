@@ -9,6 +9,9 @@ PREVIEW_MODES = {
     "raw": ("live_raw_image", "Raw image"),
     "live": ("live_image", "Live image"),
     "final": ("image", "Last image"),
+    "ai_input_image": ("ai_input_image", "Image for AI prediction"),
+    "raw_ai_input_image": ("raw_ai_input_image", "Raw image for AI prediction"),
+    "ai_output_image": ("ai_output_image", "Image with AI prediction results")
 }
 
 def create_task(hub, modes):

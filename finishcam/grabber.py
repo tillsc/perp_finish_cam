@@ -1,4 +1,5 @@
 import cv2 as cv
+import numpy as np
 import time
 import math
 import os
@@ -38,6 +39,8 @@ class Grabber:
         self.video_capture = None
         self.video_capture_lock = threading.Lock()  # needed because .read() runs in threads
 
+        self.ai_image = None
+
         self.hub = hub
         self.session_name = session_name
         self.outdir = outdir
@@ -47,6 +50,7 @@ class Grabber:
         self.left_to_right = left_to_right
         self.shutdown_event = shutdown_event
 
+        self.ai_image_enabled = kwargs.get("enable_ai_image", False)
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
         self.resolution = kwargs.get("resolution", "hd")
@@ -117,6 +121,44 @@ class Grabber:
                 raise VideoException("Can't receive frame")
 
         return cv.flip(src, 1) if self.left_to_right else src
+
+
+    def update_ai_image(self, right_half_of_image: np.ndarray, left: int, max_left: int):
+        """
+        Updates the AI image by appending the given right_half_of_image at the estimated position.
+        Uses 'left' to track time progression across capture intervals.
+        Publishes the image once it's full, then shifts the last quarter to restart.
+        """
+        if not self.ai_image_enabled:
+            return
+
+        if  self.ai_image is None:
+            self.ai_image = np.zeros((self.src_height, self.src_height * 3, 3), dtype=np.uint8)
+            self._ai_image_cursor = 0
+            self._last_ai_left = left
+
+        # Estimate time-based shift since last right_half_of_image
+        self._ai_image_cursor += (left - self._last_ai_left) % max_left
+        self._last_ai_left = left
+
+        # Append new right_half_of_image
+        self.ai_image[:, self._ai_image_cursor : self._ai_image_cursor + right_half_of_image.shape[1]] = right_half_of_image
+        self.hub.publish_threadsafe(raw_ai_input_image=self.ai_image)
+
+        # If image is full, publish and shift right quarter of square image to left
+        if self._ai_image_cursor > self.src_height:
+            # publish only the left square portion
+            square = self.ai_image[:, :self.src_height].copy()
+            self.hub.publish_threadsafe(ai_input_image=square)
+            
+            quarter = self.src_height // 4
+            # shift right quarter to the left
+            self.ai_image[:, :(self.src_height * 2 + quarter)] = self.ai_image[:, (self.src_height - quarter):(3 * self.src_height)]
+            # clear the new right half
+            self.ai_image[:, self.src_height:] = 0
+            
+            self._ai_image_cursor = self._ai_image_cursor - self.src_height + quarter
+
 
     def __postprocess_capture(self, last_capture):
         img = self.__stamp_image(last_capture.img, last_capture.metadata)
