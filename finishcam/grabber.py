@@ -106,6 +106,7 @@ class Grabber:
                 break
 
             if current_capture.exit_after:
+                next_capture_task.cancel()
                 break
 
             last_capture = current_capture
