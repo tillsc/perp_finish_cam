@@ -9,6 +9,7 @@ import finishcam.grabber
 import finishcam.webapp
 import finishcam.preview
 import finishcam.pubsub
+import finishcam.ai_worker
 
 from finishcam.logfilters import apply_shutdown_log_filter
 
@@ -58,6 +59,8 @@ async def start(args):
             tasks.append(finishcam.preview.create_task(hub, modes=(args.preview or ["raw", "live"])))
     if not args.no_webserver:
         tasks.append(finishcam.webapp.create_task(hub, session_name, args.outdir, shutdown_event))
+    if args.enable_beta_ai:
+        tasks.append(finishcam.ai_worker.create_task(hub))
 
     logging.info("Starting %i tasks", len(tasks))
 

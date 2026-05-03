@@ -8,7 +8,7 @@ This is a Python-based high-speed image assembly system, simulating a virtual sl
 Requirements
 ---
 
-- Python 3.8+
+- Python 3.10+
 - [Poetry](https://python-poetry.org/) for dependency and environment management
 
 ---
@@ -24,6 +24,11 @@ Setup & Usage
 2. **Install dependencies**:
    ```bash
    poetry install
+   ```
+
+   To enable the experimental AI feature:
+   ```bash
+   poetry install --extras ai
    ```
 
 3. **Generate HTTPS certificates** (required for HTTP/2):
@@ -62,6 +67,7 @@ The application supports a variety of options to control its behavior:
 - `--webp-quality`: WebP output quality (default: 90)
 - `--no-capture`: Skip camera capture (e.g. for webserver-only mode)
 - `--no-webserver`: Skip starting the web interface
+- `--enable-beta-ai`: Enable experimental AI-based boattip detection (requires `poetry install --extras ai`)
 - `--debug`: Enable debug logging
 
 ---
