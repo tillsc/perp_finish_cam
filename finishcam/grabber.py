@@ -77,7 +77,7 @@ class Grabber:
 
         # prime the first capture before entering loop
         current_capture = TimeSpanGrabber(self, self.time_first_start + i * self.time_span, i)
-        wait_tasks = [asyncio.to_thread(current_capture.run)]
+        current_capture_task = asyncio.create_task(asyncio.to_thread(current_capture.run))
         last_capture = None
 
         self.__write_metadata_jsons(None)
@@ -85,8 +85,10 @@ class Grabber:
 
         while not asyncio.current_task().done():
             next_capture = TimeSpanGrabber(self, self.time_first_start + (i + 1) * self.time_span, i + 1)
-            next_capture_future = asyncio.to_thread(next_capture.run)
+            # start as a task immediately so the thread is warm before time_start arrives
+            next_capture_task = asyncio.create_task(asyncio.to_thread(next_capture.run))
 
+            wait_tasks = [current_capture_task]
             if last_capture:
                 # postprocess previous while next is running
                 wait_tasks.append(asyncio.create_task(
@@ -98,7 +100,7 @@ class Grabber:
             except asyncio.CancelledError:
                 try:
                     # try to finish the next run even if not awaited
-                    await next_capture_future
+                    await next_capture_task
                 except Exception:
                     pass
                 break
@@ -108,7 +110,7 @@ class Grabber:
 
             last_capture = current_capture
             current_capture = next_capture
-            wait_tasks = [next_capture_future]
+            current_capture_task = next_capture_task
             i += 1
 
     def capture_frame(self):
