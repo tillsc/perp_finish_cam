@@ -165,7 +165,7 @@ class Grabber:
 
     def __postprocess_capture(self, last_capture):
         img = self.__stamp_image(last_capture.img, last_capture.metadata)
-        self.hub.publish(image=img, metadata=last_capture.metadata)
+        self.hub.publish_threadsafe(image=img, metadata=last_capture.metadata)
         basename = self.__write_image_and_metadata(img, last_capture.metadata)
         logging.info("Image taken %s", basename)
 
