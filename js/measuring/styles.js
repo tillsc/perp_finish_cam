@@ -66,12 +66,19 @@ export const measuringCss = css`
     background: #7b7;
   }
 
+  .images-outer > .lanes > .lane.has-ai-time {
+    background: #77b;
+  }
 
   .images-outer > .lanes > .lane.active.has-time {
     background: #f18383;
   }
 
-  .images-outer > .lanes > .lane.resizing, .images-outer > .lanes > .lane.resizing.has-time {
+  .images-outer > .lanes > .lane.active.has-ai-time {
+    background: #c88;
+  }
+
+  .images-outer > .lanes > .lane.resizing, .images-outer > .lanes > .lane.resizing.has-time, .images-outer > .lanes > .lane.resizing.has-ai-time {
     background: #ffc;
   }
 
@@ -112,6 +119,11 @@ export const measuringCss = css`
     left: calc(var(--perp-fc-time-x, 0) * var(--perp-fc-image-scale, 1));
   }
 
+  .images-outer > .images > .times > .time.has-ai-time {
+    border-left-color: #5ef;
+    color: #5ef;
+  }
+
   .hud {
     font-size: 1rem;
     line-height: 1.2;
@@ -128,6 +140,10 @@ export const measuringCss = css`
 
   .hud button {
     min-width: 2rem;
+  }
+
+  .hud button.active {
+    background: #7b7;
   }
 
   .hud .time {

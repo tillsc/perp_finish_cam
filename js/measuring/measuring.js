@@ -27,13 +27,17 @@ class PerpFinishcamMeasuringElement extends LitElement {
         _currentScale: {type: Number, state: true},
         _currentOffsetLeft: {type: Number, state: true},
 
-        _x: {type: Number, state: true}
+        _x: {type: Number, state: true},
+
+        _aiEnabled: {type: Boolean, state: true},
+        _aiAvailable: {type: Boolean, state: true},
     };
 
     static styles = measuringCss;
 
     canvasRef = createRef();
     imagesRef = createRef();
+    liveRef = createRef();
     sessionMetadataService = new SessionMetadataService({
         onNewImage: () => {
             this._error = undefined;
@@ -47,9 +51,20 @@ class PerpFinishcamMeasuringElement extends LitElement {
         super.connectedCallback();
 
         this.sessionMetadataService.start(this.href);
-        this.live = 
+        this.live =
         new ResizeObserver(() => this._afterRender(true))
           .observe(this);
+
+        this._onAiStatus = (e) => { this._aiEnabled = e.detail.enabled; this._aiAvailable = e.detail.available; };
+        this._onAiDetection = (e) => this._handleAiDetection(e.detail);
+        this.addEventListener('ai-status', this._onAiStatus);
+        this.addEventListener('ai-detection', this._onAiDetection);
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this.removeEventListener('ai-status', this._onAiStatus);
+        this.removeEventListener('ai-detection', this._onAiDetection);
     }
 
     _initLanes(baseDate) {
@@ -152,13 +167,14 @@ class PerpFinishcamMeasuringElement extends LitElement {
                                  .timeStart="${this.sessionMetadataService.timeStart(index)}">
                         `)}
                         ${this.sessionMetadataService.isLive() ? html`
-                            <perp-fc-live 
+                            <perp-fc-live
+                              ${ref(this.liveRef)}
                               href="${this.href}"
-                              .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())} 
+                              .timeStart=${this.sessionMetadataService.timeStart(this.sessionMetadataService.imageCount())}
                               for-index="${this.sessionMetadataService.imageCount()}"></perp-fc-live>` : ''}
                         <div class="times">
                             ${this._lanes?.map(lane => html`
-                                <div class="time ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''}" 
+                                <div class="time ${lane.time ? 'has-time' : ''} ${lane.isAiClick ? 'has-ai-time' : ''} ${lane === this._activeLane ? 'active' : ''}"
                                      style="--perp-fc-time-x: ${lane.time ? timeDifferenceInMilliseconds(lane.time, this.sessionMetadataService.timeStart())/1000 * this.sessionMetadataService.pxPerSecond() : 0}px"
                                      data-lane-index="${lane.index}">
                                     ${lane.time ? formatTime(lane.time) : ''}<br>
@@ -169,7 +185,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     
                     <div class="lanes">
                         ${this._lanes?.map(lane => html`
-                            <div class="lane ${lane.time ? 'has-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}" 
+                            <div class="lane ${lane.time ? 'has-time' : ''} ${lane.isAiClick ? 'has-ai-time' : ''} ${lane === this._activeLane ? 'active' : ''} ${(this._resizingLaneIndex === lane.index || this._resizingLaneIndex === lane.index - 1) ? 'resizing' : ''}"
                                  ${ref(lane.ref)} data-lane-index="${lane.index}"
                                  title="${lane.time ? formatTime(lane.time) : ''}">
                                 ${lane.text}
@@ -201,19 +217,49 @@ class PerpFinishcamMeasuringElement extends LitElement {
     }
 
     renderControls() {
-        const playPause = this.sessionMetadataService.isLive() ? 
+        const playPause = this.sessionMetadataService.isLive() ?
             html`<button @click="${() => this._autoplay = !this._autoplay}">
                 ${this._autoplay ? '⏸' : '▶'}</button>` : '';
-        
-        const jumpToMostRelevant = this.sessionMetadataService.expectedAt ? 
+
+        const jumpToMostRelevant = this.sessionMetadataService.expectedAt ?
             html`<button @click="${() => this.scrollToTime(parseTime(this.expectedAt, this.sessionMetadataService.timeStart()))}}">
                 ⏲</button>` : '';
+
+        const aiButton = this._aiAvailable ? html`
+            <button class="${this._aiEnabled ? 'active' : ''}"
+                    @click="${() => this.liveRef.value?.sendCommand(0x10)}">🤖</button>` : '';
+
         return html`<div class="buttons">
                         <button @click="${() => { this._autoplay = false; this.scrollTo(0); }}">⏮</button>
                         ${playPause}
                         ${jumpToMostRelevant}
                         <button @click="${() => { this._autoplay = false; this.scrollToRight(); }}">⏭</button>
+                        ${aiButton}
                     </div>`;
+    }
+
+    _laneFromY(yPixel) {
+        const imageHeight = this.sessionMetadataService.imageHeight();
+        const yFraction = yPixel / imageHeight;
+        let cumulative = 0;
+        for (let i = 0; i < this._lanes.length; i++) {
+            cumulative += (this._laneHeightPercentages[i] || 0) / 100;
+            if (yFraction < cumulative) return this._lanes[i];
+        }
+        return this._lanes[this._lanes.length - 1];
+    }
+
+    _handleAiDetection(detections) {
+        const pxPerSecond = this.sessionMetadataService.pxPerSecond();
+        let changed = false;
+        for (const det of detections) {
+            const lane = this._laneFromY(det.y);
+            if (!lane || lane.time) continue;
+            const time = new Date((det.time_start + det.x / pxPerSecond) * 1000);
+            this._stopTime(time, lane, true);
+            changed = true;
+        }
+        if (changed) this.requestUpdate();
     }
 
     _lanesWithTimes() {
@@ -285,6 +331,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 this._afterRender(true);
                 break;
             case 'mousedown':
+                this._mousedownInComponent = true;
                 if (event.target.classList.contains('lane')) {
                     if (event.offsetY > event.target.getBoundingClientRect().height - 3) {
                         const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
@@ -304,6 +351,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 event.preventDefault();
                 break;
             case 'mouseup':
+                this._mousedownInComponent = false;
                 if (this._resizingLaneIndex === undefined && event.target.classList.contains('lane')) {
                     const laneIndex = parseInt(event.target.getAttribute('data-lane-index'));
                     const lane = this._lanes[laneIndex];
@@ -328,7 +376,7 @@ class PerpFinishcamMeasuringElement extends LitElement {
                     this._handleLaneResize(event);
                 }
                 else {
-                    if (!event.target.classList.contains('lane') && event.buttons == 1 && this._x && this._activeLane) {
+                    if (!event.target.classList.contains('lane') && event.buttons == 1 && this._mousedownInComponent && this._x && this._activeLane) {
                         this._stopTime(this._x, this._activeLane);
                         this.requestUpdate();
                     }
@@ -338,8 +386,9 @@ class PerpFinishcamMeasuringElement extends LitElement {
         }
     }
 
-    _stopTime(x, activeLane) {
+    _stopTime(x, activeLane, isAiClick = false) {
         activeLane.time = x;
+        activeLane.isAiClick = x ? isAiClick : false;
         if (activeLane.input) {
             activeLane.input.value = x ? formatTime(x) : '';
         }

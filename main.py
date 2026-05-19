@@ -41,6 +41,8 @@ async def start(args):
     loop = asyncio.get_running_loop()
     setup_signal_handler(loop)
 
+    hub.publish(ai_available=args.enable_beta_ai)
+
     # Prepare tasks
     tasks = []
     if not args.no_capture:

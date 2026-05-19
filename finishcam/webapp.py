@@ -52,11 +52,44 @@ async def serve_js_file(path):
 async def ws_live():
     task = asyncio.current_task()
     app.active_ws_tasks.add(task)
+
+    async def receive_loop():
+        try:
+            while True:
+                data = await websocket.receive()
+                if isinstance(data, (bytes, bytearray)) and len(data) >= 1 and data[0] == 0x10:
+                    app.hub.publish(ai_enabled=not app.hub.data.get('ai_enabled', False))
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logging.debug("WS receive loop ended: %s", e)
+
+    receive_task = asyncio.create_task(receive_loop())
     try:
+        # Send current AI status on connect
+        await _send_ai_status()
+
         last_index = None
+        last_ai_enabled = app.hub.data.get('ai_enabled', False)
+
         with finishcam.pubsub.Subscription(app.hub) as event:
             while True:
                 await event.wait()
+
+                # Broadcast AI status change to all clients
+                ai_enabled = app.hub.data.get('ai_enabled', False)
+                if ai_enabled != last_ai_enabled:
+                    last_ai_enabled = ai_enabled
+                    await _send_ai_status()
+
+                # pop() consumes the detection so it won't be re-sent on the next event
+                detections = app.hub.data.pop('ai_detections', None)
+                if detections:
+                    try:
+                        await websocket.send(bytes([0x02]) + bytearray(json.dumps(detections), 'utf-8'))
+                    except Exception as e:
+                        logging.debug("AI detection send failed: %s", e)
+
                 if "live_image" in app.hub.data:
                     fut = None
                     metadata = app.hub.data["live_metadata"]
@@ -86,11 +119,27 @@ async def ws_live():
     except asyncio.CancelledError:
         logging.info("WebSocket task was cancelled")
     finally:
+        receive_task.cancel()
+        try:
+            await receive_task
+        except Exception:
+            pass
         app.active_ws_tasks.discard(task)
         try:
             await websocket.close()
         except Exception as e:
             logging.debug("WebSocket close failed: %s", e)
+
+
+async def _send_ai_status():
+    status = {
+        "enabled": app.hub.data.get('ai_enabled', False),
+        "available": app.hub.data.get('ai_available', False),
+    }
+    try:
+        await websocket.send(bytes([0x03]) + bytearray(json.dumps(status), 'utf-8'))
+    except Exception as e:
+        logging.debug("AI status send failed: %s", e)
 
 
 def create_task(hub, session_name, outdir, shutdown_event: asyncio.Event):

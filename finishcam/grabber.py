@@ -131,11 +131,13 @@ class Grabber:
         Updates the AI image by appending the given right_half_of_image at the estimated position.
         Uses 'left' to track time progression across capture intervals.
         Publishes the image once it's full, then shifts the last quarter to restart.
+        Only runs when both ai_image_enabled (capability) and ai_enabled (hub flag) are set.
         """
-        if not self.ai_image_enabled:
+        if not self.ai_image_enabled or not self.hub.data.get('ai_enabled', False):
+            self.ai_image = None
             return
 
-        if  self.ai_image is None:
+        if self.ai_image is None:
             self.ai_image = np.zeros((self.src_height, self.src_height * 3, 3), dtype=np.uint8)
             self._ai_image_cursor = 0
             self._last_ai_left = left
@@ -148,18 +150,16 @@ class Grabber:
         self.ai_image[:, self._ai_image_cursor : self._ai_image_cursor + right_half_of_image.shape[1]] = right_half_of_image
         self.hub.publish_threadsafe(raw_ai_input_image=self.ai_image)
 
-        # If image is full, publish and shift right quarter of square image to left
-        if self._ai_image_cursor > self.src_height:
-            # publish only the left square portion
+        # If first square is full, publish it and shift right quarter to left for overlap
+        if self._ai_image_cursor >= self.src_height:
             square = self.ai_image[:, :self.src_height].copy()
-            self.hub.publish_threadsafe(ai_input_image=square)
-            
+            px_per_second = self.fps * self.slot_width
+            ai_time_start = time.time() - self._ai_image_cursor / px_per_second
+            self.hub.publish_threadsafe(ai_input_image=square, ai_input_image_time_start=ai_time_start)
+
             quarter = self.src_height // 4
-            # shift right quarter to the left
             self.ai_image[:, :(self.src_height * 2 + quarter)] = self.ai_image[:, (self.src_height - quarter):(3 * self.src_height)]
-            # clear the new right half
             self.ai_image[:, self.src_height:] = 0
-            
             self._ai_image_cursor = self._ai_image_cursor - self.src_height + quarter
 
 

@@ -26,16 +26,14 @@ class Hub:
 
 class Subscription:
     """Context-managed subscriber to a Hub, using an asyncio.Event."""
-    
+
     def __init__(self, hub):
         self.hub = hub
         self.event = asyncio.Event()
 
     def __enter__(self):
-        # Register as subscriber
         self.hub.subscriptions.add(self.event)
         return self.event
 
     def __exit__(self, type, value, traceback):
-        # Unregister on exit
         self.hub.subscriptions.remove(self.event)

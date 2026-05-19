@@ -63,7 +63,21 @@ class PerpFinishcamLiveElement extends HTMLElement {
             this.timeDelta = now.getTime() - timeStart.getTime();
             this.timeSpan = metadata.time_span;
         }
+        else if (type == 0x02) {
+            const detections = JSON.parse(new TextDecoder().decode(bytes.slice(1)));
+            this.dispatchEvent(new CustomEvent('ai-detection', { detail: detections, bubbles: true, composed: true }));
+        }
+        else if (type == 0x03) {
+            const status = JSON.parse(new TextDecoder().decode(bytes.slice(1)));
+            this.dispatchEvent(new CustomEvent('ai-status', { detail: status, bubbles: true, composed: true }));
+        }
         this.render();
+    }
+
+    sendCommand(byte) {
+        if (this.webservice?.readyState === WebSocket.OPEN) {
+            this.webservice.send(new Uint8Array([byte]));
+        }
     }
 
     render() {
