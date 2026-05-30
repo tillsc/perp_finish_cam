@@ -51,6 +51,7 @@ class Grabber:
         self.shutdown_event = shutdown_event
 
         self.ai_image_enabled = kwargs.get("enable_ai_image", False)
+        self.ai_overlap = kwargs.get("ai_overlap", 25) / 100
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
         self.resolution = kwargs.get("resolution", "hd")
@@ -157,10 +158,10 @@ class Grabber:
             ai_time_start = time.time() - self._ai_image_cursor / px_per_second
             self.hub.publish_threadsafe(ai_input_image=square, ai_input_image_time_start=ai_time_start)
 
-            quarter = self.src_height // 4
-            self.ai_image[:, :(self.src_height * 2 + quarter)] = self.ai_image[:, (self.src_height - quarter):(3 * self.src_height)]
+            overlap = round(self.src_height * self.ai_overlap)
+            self.ai_image[:, :(self.src_height * 2 + overlap)] = self.ai_image[:, (self.src_height - overlap):(3 * self.src_height)]
             self.ai_image[:, self.src_height:] = 0
-            self._ai_image_cursor = self._ai_image_cursor - self.src_height + quarter
+            self._ai_image_cursor = self._ai_image_cursor - self.src_height + overlap
 
 
     def __postprocess_capture(self, last_capture):

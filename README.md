@@ -54,7 +54,7 @@ Command-Line Options
 The application supports a variety of options to control its behavior:
 
 - `outdir`: Output directory for images and metadata (default: `./data`)
-- `--preview`: Show live OpenCV preview windows while capturing
+- `--preview`: Show preview windows while capturing; optionally specify modes: `live`, `final`, `raw`, `ai_input_image`, `raw_ai_input_image`, `ai_output_image` (default when flag is set without values: `live` + `raw`)
 - `--left-to-right`: Set direction of movement (default: right-to-left)
 - `--time-span`: Duration in seconds per image (default: 10)
 - `--fps`: Frames per second to request from the camera (default: 30)
@@ -68,6 +68,7 @@ The application supports a variety of options to control its behavior:
 - `--no-capture`: Skip camera capture (e.g. for webserver-only mode)
 - `--no-webserver`: Skip starting the web interface
 - `--enable-beta-ai`: Enable experimental AI-based boattip detection (requires `poetry install --extras ai`)
+- `--ai-overlap`: Overlap between consecutive AI input images in percent (default: 25)
 - `--debug`: Enable debug logging
 
 ---

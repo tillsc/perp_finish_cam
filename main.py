@@ -55,6 +55,7 @@ async def start(args):
             video_capture_index=args.video_capture_index,
             resolution=args.resolution,
             enable_ai_image=args.enable_beta_ai,
+            ai_overlap=args.ai_overlap,
             debug=args.debug
         ))
         if args.preview is not None:
@@ -124,6 +125,8 @@ def main():
                         help="Disable webserver (capturing only)")
     parser.add_argument("--enable-beta-ai", action="store_true",
                         help="Enable experimental AI-based boattip detection (beta)")
+    parser.add_argument("--ai-overlap", type=int, default=25,
+                        help="Overlap between consecutive AI input images in percent (default: 25)")
     parser.add_argument("--debug", action="store_true", help="Start in debug mode (very noisy)")
 
     try:
