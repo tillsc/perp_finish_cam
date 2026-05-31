@@ -48,6 +48,7 @@ class Grabber:
         self.fps = fps
         self.slot_width = slot_width
         self.left_to_right = left_to_right
+        self.upside_down = kwargs.get("upside_down", False)
         self.shutdown_event = shutdown_event
 
         self.ai_overlap = kwargs.get("ai_overlap", 25) / 100
@@ -123,7 +124,15 @@ class Grabber:
             if not ret:
                 raise VideoException("Can't receive frame")
 
-        return cv.flip(src, 1) if self.left_to_right else src
+        h_flip = self.left_to_right ^ self.upside_down
+        v_flip = self.upside_down
+        if h_flip and v_flip:
+            return cv.flip(src, -1)
+        elif h_flip:
+            return cv.flip(src, 1)
+        elif v_flip:
+            return cv.flip(src, 0)
+        return src
 
 
     def update_ai_image(self, right_half_of_image: np.ndarray, left: int, max_left: int):
@@ -223,6 +232,7 @@ class Grabber:
             "time_start": self.time_first_start,
             "time_span": self.time_span,
             "left_to_right": self.left_to_right,
+            "upside_down": self.upside_down,
             "px_per_second": self.fps * self.slot_width,
             "slot_width": self.slot_width,
             "last_index": last_index,

@@ -50,7 +50,7 @@ async def start(args):
         tasks.append(finishcam.grabber.create_task(
             hub, session_name, args.outdir,
             args.time_span, args.fps, args.slot_width, args.left_to_right,
-            shutdown_event,
+            shutdown_event, upside_down=args.upside_down,
             webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             video_capture_index=args.video_capture_index,
@@ -100,6 +100,8 @@ def main():
     )
     parser.add_argument("-l", "--left-to-right", action="store_true",
                         help="Race is coming from the left (default: from the right)")
+    parser.add_argument("-u", "--upside-down", action="store_true",
+                        help="Camera is mounted upside down (rotates image 180°)")
     parser.add_argument("-t", "--time-span", type=int, default=10,
                         help="Time in seconds per destination image (default: 10)")
     parser.add_argument("-f", "--fps", type=int, default=60,
