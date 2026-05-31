@@ -20,6 +20,14 @@ torchvision = { version = ">=0.26", optional = true }
 [tool.poetry.extras]
 ai = ["perp-cnn", "torch", "torchvision"]
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-asyncio = "^0.23"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
