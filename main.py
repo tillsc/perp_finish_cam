@@ -102,8 +102,8 @@ def main():
                         help="Race is coming from the left (default: from the right)")
     parser.add_argument("-t", "--time-span", type=int, default=10,
                         help="Time in seconds per destination image (default: 10)")
-    parser.add_argument("-f", "--fps", type=int, default=30,
-                        help="Frames per second to request from camera (default: 30)")
+    parser.add_argument("-f", "--fps", type=int, default=60,
+                        help="Frames per second to request from camera (default: 60)")
     parser.add_argument("-w", "--slot-width", type=int, default=2,
                         help="Default slot width when camera provides requested FPS (default: 2px)")
     parser.add_argument("-r", "--resolution",
