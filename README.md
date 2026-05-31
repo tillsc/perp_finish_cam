@@ -73,6 +73,25 @@ The application supports a variety of options to control its behavior:
 
 ---
 
+Listing Available Cameras
+---
+
+To find the right `--video-capture-index` for your camera:
+
+**Linux** (`sudo apt install v4l-utils`):
+```bash
+v4l2-ctl --list-devices
+```
+
+**macOS** (built-in):
+```bash
+system_profiler SPCameraDataType
+```
+
+OpenCV numbers cameras starting at 0 in the order they appear in the output.
+
+---
+
 Linux Notes
 ---
 
