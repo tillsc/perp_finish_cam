@@ -41,7 +41,8 @@ async def start(args):
     loop = asyncio.get_running_loop()
     setup_signal_handler(loop)
 
-    hub.publish(ai_available=args.enable_beta_ai)
+    ai_available = finishcam.ai_worker.is_available()
+    hub.publish(ai_available=ai_available)
 
     # Prepare tasks
     tasks = []
@@ -54,7 +55,6 @@ async def start(args):
             test_mode=args.test_mode, stamp_fps=args.stamp_fps,
             video_capture_index=args.video_capture_index,
             resolution=args.resolution,
-            enable_ai_image=args.enable_beta_ai,
             ai_overlap=args.ai_overlap,
             debug=args.debug
         ))
@@ -62,7 +62,7 @@ async def start(args):
             tasks.append(finishcam.preview.create_task(hub, modes=(args.preview or ["raw", "live"])))
     if not args.no_webserver:
         tasks.append(finishcam.webapp.create_task(hub, session_name, args.outdir, shutdown_event))
-    if args.enable_beta_ai:
+    if ai_available:
         tasks.append(finishcam.ai_worker.create_task(hub))
 
     logging.info("Starting %i tasks", len(tasks))
@@ -123,8 +123,6 @@ def main():
                         help="Disable capturing (webserver only)")
     parser.add_argument("--no-webserver", action="store_true",
                         help="Disable webserver (capturing only)")
-    parser.add_argument("--enable-beta-ai", action="store_true",
-                        help="Enable experimental AI-based boattip detection (beta)")
     parser.add_argument("--ai-overlap", type=int, default=25,
                         help="Overlap between consecutive AI input images in percent (default: 25)")
     parser.add_argument("--debug", action="store_true", help="Start in debug mode (very noisy)")

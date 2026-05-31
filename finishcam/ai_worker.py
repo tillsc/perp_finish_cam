@@ -7,15 +7,27 @@ import numpy as np
 import finishcam.pubsub
 
 
+def is_available():
+    import importlib.util
+    return importlib.util.find_spec('perp_cnn') is not None
+
+
 def create_task(hub):
     return asyncio.create_task(start(hub))
 
 
 async def start(hub):
-    from perp_cnn.model import load_model
+    logging.info("Downloading AI model...")
+    await asyncio.to_thread(_download_model)
+    logging.info("AI model downloaded")
 
-    logging.info("Loading AI model...")
-    model = await asyncio.to_thread(load_model)
+    with finishcam.pubsub.Subscription(hub) as event:
+        while not hub.data.get('ai_enabled', False):
+            await event.wait()
+            event.clear()
+
+    logging.info("Loading AI model into RAM...")
+    model = await asyncio.to_thread(_load_model)
     logging.info("AI model ready")
 
     last_processed_ts = None
@@ -43,6 +55,17 @@ async def start(hub):
                 raise
             except Exception as e:
                 logging.warning("AI inference failed: %s", e)
+
+
+def _download_model():
+    from huggingface_hub import hf_hub_download
+    from perp_cnn.model import HF_REPO_ID, HF_FILENAME
+    hf_hub_download(repo_id=HF_REPO_ID, filename=HF_FILENAME)
+
+
+def _load_model():
+    from perp_cnn.model import load_model
+    return load_model()
 
 
 def _run_inference(model, image: np.ndarray, time_start: float) -> tuple:

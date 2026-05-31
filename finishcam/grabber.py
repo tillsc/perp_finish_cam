@@ -50,7 +50,6 @@ class Grabber:
         self.left_to_right = left_to_right
         self.shutdown_event = shutdown_event
 
-        self.ai_image_enabled = kwargs.get("enable_ai_image", False)
         self.ai_overlap = kwargs.get("ai_overlap", 25) / 100
         self.webp_quality = kwargs.get("webp_quality", 90)
         self.test_mode = kwargs.get("test_mode", 0)
@@ -134,7 +133,7 @@ class Grabber:
         Publishes the image once it's full, then shifts the last quarter to restart.
         Only runs when both ai_image_enabled (capability) and ai_enabled (hub flag) are set.
         """
-        if not self.ai_image_enabled or not self.hub.data.get('ai_enabled', False):
+        if not self.hub.data.get('ai_available', False) or not self.hub.data.get('ai_enabled', False):
             self.ai_image = None
             return
 

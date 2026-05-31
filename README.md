@@ -26,10 +26,12 @@ Setup & Usage
    poetry install
    ```
 
-   To enable the experimental AI feature:
+   To enable the experimental AI boattip detection:
    ```bash
    poetry install --extras ai
    ```
+   If the AI extras are installed, AI detection is available automatically (no extra flag needed).
+   Enable/disable it at runtime via the 🤖 button in the web interface.
 
 3. **Generate HTTPS certificates** (required for HTTP/2):
    ```bash
@@ -67,7 +69,6 @@ The application supports a variety of options to control its behavior:
 - `--webp-quality`: WebP output quality (default: 90)
 - `--no-capture`: Skip camera capture (e.g. for webserver-only mode)
 - `--no-webserver`: Skip starting the web interface
-- `--enable-beta-ai`: Enable experimental AI-based boattip detection (requires `poetry install --extras ai`)
 - `--ai-overlap`: Overlap between consecutive AI input images in percent (default: 25)
 - `--debug`: Enable debug logging
 
