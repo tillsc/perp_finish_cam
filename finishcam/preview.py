@@ -7,10 +7,9 @@ import finishcam.pubsub
 # Defines all supported preview modes and their corresponding Hub keys and window titles
 PREVIEW_MODES = {
     "raw": ("live_raw_image", "Raw image"),
-    "live": ("live_image", "Live image"),
+    "live": ("current_scan", "Live image"),
     "final": ("image", "Last image"),
     "ai_input_image": ("ai_input_image", "Image for AI prediction"),
-    "raw_ai_input_image": ("raw_ai_input_image", "Raw image for AI prediction"),
     "ai_output_image": ("ai_output_image", "Image with AI prediction results")
 }
 
@@ -36,7 +35,8 @@ async def start(hub, modes: set[str]):
 
             for field, window in modes_to_show.items():
                 if field in hub.data:
-                    img = hub.data[field].copy()
+                    data = hub.data[field]
+                    img = (data.image if field == "current_scan" else data).copy()
 
                     if field == "live_raw_image":
                         # Draw semi-transparent green center line

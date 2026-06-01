@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk ls *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk read *)",
+      "Bash(rtk find *)",
+      "Bash(poetry -C /Users/tillsc/github/tillsc/perp_finish_cam show --no-ansi)"
+    ]
+  }
+}

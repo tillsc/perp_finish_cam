@@ -1,45 +1,159 @@
 import cv2 as cv
+import json
 import numpy as np
 import time
-import math
 import os
-import json
 import asyncio
 import threading
 import logging
 import platform
 
-from finishcam.timespan_grabber import TimeSpanGrabber
 
 def create_task(hub, session_name, outdir, time_span, fps, slot_width, left_to_right, shutdown_event, **kwargs):
-    grabber = Grabber(
-        hub, session_name, outdir,
-        time_span, fps, slot_width, left_to_right, shutdown_event, **kwargs,
-    )
+    grabber = Grabber(hub, session_name, outdir, time_span, fps, slot_width, left_to_right, shutdown_event, **kwargs)
     return asyncio.create_task(grabber.start())
+
 
 class VideoException(Exception):
     """Exception raised when video capture fails."""
     pass
 
-STAMPS_COLOR = (100, 255, 100)
+
+class AbstractScanImage:
+    """
+    Base for objects that accumulate vertical frame strips into an image over time.
+
+    Subclasses implement add_frame() and return self when complete, so the Grabber
+    can publish the result and replace the instance. Both subclasses share height,
+    px_per_second, and per-frame fps tracking.
+    """
+
+    def __init__(self, session_meta):
+        self.session_meta = session_meta
+        self.frame_count = 0
+        self.fps = 0.0
+
+    @property
+    def height(self):
+        return self.session_meta["height"]
+
+    @property
+    def px_per_second(self):
+        return self.session_meta["px_per_second"]
+
+    @property
+    def time_span(self):
+        return self.session_meta["time_span"]
+
+    @property
+    def slot_width(self):
+        return self.session_meta["slot_width"]
+
+    @property
+    def scan_width(self):
+        return self.time_span * self.px_per_second
+
+    @property
+    def session_start(self):
+        return self.session_meta["time_start"]
+
+    def _track_fps(self, left):
+        self.frame_count += 1
+        if left > 0:
+            self.fps = self.frame_count / (left / self.px_per_second)
+
+    def add_frame(self, strip: np.ndarray, left: int) -> 'AbstractScanImage | None':
+        """Returns self when complete, None while still accumulating."""
+        raise NotImplementedError
+
+
+
+class ScanImage(AbstractScanImage):
+    """Accumulates a time-bounded slit-camera image from per-frame strips."""
+
+    def __init__(self, session_meta, index, first_frame, strip_left, left):
+        super().__init__(session_meta)
+        self.index = index
+
+        self.image = np.full((self.height, self.scan_width, 3), (200, 200, 200), np.uint8)
+        # back-fill: if the slot started mid-frame, read left of strip_left to fill from position 0
+        read_strip = first_frame[:, max(0, strip_left - left):]
+        self.add_frame(read_strip, max(0, left - strip_left))
+
+    @property
+    def time_start(self):
+        return self.session_start + self.index * self.time_span
+
+    @property
+    def metadata(self):
+        return {**self.session_meta, "time_start": self.time_start, "index": self.index, "frame_count": self.frame_count, "fps": self.fps}
+
+    def add_frame(self, strip, left):
+        if left >= self.scan_width:
+            return self  # past scan boundary, signal completion
+
+        width = min(strip.shape[1], self.scan_width - left)
+        self.image[:, left:left + width] = strip[:, :width]
+
+        self._track_fps(left)
+        return None
+
+
+
+class AiScanImage(AbstractScanImage):
+    """
+    Accumulates vertical strips into a rolling square AI input image.
+
+    Operates continuously across ScanImage boundaries. add_frame() returns
+    self once a full square is ready; the Grabber reads .square and
+    .ai_time_start, then creates a new AiScanImage seeded with the overlap.
+    """
+
+    def __init__(self, session_meta, ai_overlap, previous=None, initial_left=0):
+        super().__init__(session_meta)
+        self._overlap = round(self.height * ai_overlap)  # x-axis pixels; height == square side length
+        self.image = np.zeros((self.height, self.height * 3, 3), dtype=np.uint8)
+        self.square = None
+        self.ai_time_start = None
+
+        if previous is not None:
+            # seed with overlap portion from the end of the previous completed square
+            self.image[:, :self._overlap] = previous.image[:, self.height - self._overlap:self.height]
+            self._cursor = self._overlap
+            self._last_left = previous._last_left
+        else:
+            self._cursor = 0
+            self._last_left = initial_left
+
+    def add_frame(self, strip, left):
+        self._cursor += (left - self._last_left) % self.scan_width
+        self._last_left = left
+
+        end = min(self._cursor + strip.shape[1], self.image.shape[1])
+        self.image[:, self._cursor:end] = strip[:, :end - self._cursor]
+
+        self._track_fps(left)
+
+        if self._cursor >= self.height:
+            self.square = self.image[:, :self.height].copy()
+            self.ai_time_start = time.time() - self._cursor / self.px_per_second
+            return self  # signal completion
+
+        return None
+
 
 class Grabber:
     """
     Controls the full image capture loop.
 
-    Initializes and manages the video device, starts a sequence of
-    TimeSpanGrabber runs, and handles postprocessing and output
-    (including stamping, encoding, and metadata writing).
-
-    Designed for continuous, slice-based image acquisition over time.
+    Runs a single dedicated camera thread that reads frames continuously,
+    feeds them to a ScanImage and an AiScanImage, and publishes results to the hub.
+    Postprocessing (stamping, encoding, saving) is handled by a separate subscriber.
     """
 
     def __init__(self, hub, session_name, outdir, time_span, fps, slot_width, left_to_right, shutdown_event: asyncio.Event, **kwargs):
         self.video_capture = None
-        self.video_capture_lock = threading.Lock()  # needed because .read() runs in threads
-
-        self.ai_image = None
+        self.video_capture_lock = threading.Lock()  # needed because __stop_video runs outside the camera thread
 
         self.hub = hub
         self.session_name = session_name
@@ -52,74 +166,83 @@ class Grabber:
         self.shutdown_event = shutdown_event
 
         self.ai_overlap = kwargs.get("ai_overlap", 25) / 100
-        self.webp_quality = kwargs.get("webp_quality", 90)
-        self.test_mode = kwargs.get("test_mode", 0)
         self.resolution = kwargs.get("resolution", "hd")
         self.video_capture_index = kwargs.get("video_capture_index", 0)
-        self.stamp_options = {
-            "time": kwargs.get("stamp_time", True),
-            "fps": kwargs.get("stamp_fps", False),
-            "ticks": kwargs.get("stamp_ticks", True),
-            "tick-texts": kwargs.get("stamp_tick_texts", True),
-        }
 
     async def start(self):
         os.makedirs(f"{self.outdir}/{self.session_name}", exist_ok=True)
         self.__init_video()
+        self.time_first_start = time.time()
+        self.session_meta = {
+            "session_name": self.session_name,
+            "time_start": self.time_first_start,
+            "time_span": self.time_span,
+            "left_to_right": self.left_to_right,
+            "upside_down": self.upside_down,
+            "px_per_second": self.fps * self.slot_width,
+            "slot_width": self.slot_width,
+            "last_index": None,
+            "height": self.src_height,
+        }
+        self.hub.publish(session_started=self.session_meta)
+        logging.debug("Enter capture loop")
 
         try:
-            await self.start_capture()
+            await asyncio.to_thread(self._camera_loop)
         finally:
             self.__stop_video()
 
-    async def start_capture(self):
-        self.time_first_start = time.time()
+    def _camera_loop(self):
+        """Single camera thread: feeds each frame into ScanImage and AiScanImage."""
         i = 0
+        scan = None
+        ai_scan = None
 
-        # prime the first capture before entering loop
-        current_capture = TimeSpanGrabber(self, self.time_first_start + i * self.time_span, i)
-        current_capture_task = asyncio.create_task(asyncio.to_thread(current_capture.run))
-        last_capture = None
-
-        self.__write_metadata_jsons(None)
-        logging.debug("Enter capture loop")
-
-        while not asyncio.current_task().done():
-            next_capture = TimeSpanGrabber(self, self.time_first_start + (i + 1) * self.time_span, i + 1)
-            # start as a task immediately so the thread is warm before time_start arrives
-            next_capture_task = asyncio.create_task(asyncio.to_thread(next_capture.run))
-
-            wait_tasks = [current_capture_task]
-            if last_capture:
-                # postprocess previous while next is running
-                wait_tasks.append(asyncio.create_task(
-                    asyncio.to_thread(self.__postprocess_capture, last_capture)
-                ))
-
+        consecutive_failures = 0
+        while not self.shutdown_event.is_set():
             try:
-                await asyncio.gather(*wait_tasks)
-            except asyncio.CancelledError:
-                try:
-                    # try to finish the next run even if not awaited
-                    await next_capture_task
-                except Exception:
-                    pass
-                break
+                src = self.capture_frame()
+                consecutive_failures = 0
+            except VideoException as e:
+                if self.video_capture is None or not self.video_capture.isOpened():
+                    break  # camera released by shutdown, exit cleanly
+                consecutive_failures += 1
+                if consecutive_failures >= 5:
+                    logging.error("Camera unrecoverable after %d consecutive failures: %s", consecutive_failures, e)
+                    break
+                logging.warning("Frame dropped (%d/5): %s", consecutive_failures, e)
+                continue
 
-            if current_capture.exit_after:
-                next_capture_task.cancel()
-                break
+            t = time.time()
+            strip = src[:, self.strip_left:self.src_width]
+            left = round((t - (scan.time_start if scan else self.time_first_start)) * self.fps * self.slot_width)
 
-            last_capture = current_capture
-            current_capture = next_capture
-            current_capture_task = next_capture_task
-            i += 1
+            completed = scan and scan.add_frame(strip, left)
+            if completed:
+                self.hub.publish_threadsafe(completed_scan=completed)
+                i += 1
+            if not scan or completed:
+                new_left = left % (self.time_span * self.fps * self.slot_width) if completed else left
+                scan = ScanImage(self.session_meta, i, src, self.strip_left, new_left)
+
+            self.hub.publish_threadsafe(current_scan=scan, live_raw_image=src)
+
+            if self.hub.data.get('ai_available') and self.hub.data.get('ai_enabled'):
+                if not ai_scan:
+                    ai_scan = AiScanImage(self.session_meta, self.ai_overlap, initial_left=left)
+                if ai_scan.add_frame(strip, left):
+                    self.hub.publish_threadsafe(ai_input_image=ai_scan.square, ai_input_image_time_start=ai_scan.ai_time_start)
+                    ai_scan = AiScanImage(self.session_meta, self.ai_overlap, previous=ai_scan)
+                    ai_scan.add_frame(strip, left)  # seed position _overlap with the triggering frame
+                self.hub.publish_threadsafe(current_ai_scan=ai_scan)
+            else:
+                ai_scan = None
 
     def capture_frame(self):
         if self.video_capture is None or not self.video_capture.isOpened():
             raise VideoException("Video is closed")
 
-        with self.video_capture_lock:  # ensure .read() is not interleaved
+        with self.video_capture_lock:  # ensure .read() is not interleaved with release()
             ret, src = self.video_capture.read()
             if not ret:
                 raise VideoException("Can't receive frame")
@@ -133,111 +256,6 @@ class Grabber:
         elif v_flip:
             return cv.flip(src, 0)
         return src
-
-
-    def update_ai_image(self, right_half_of_image: np.ndarray, left: int, max_left: int):
-        """
-        Updates the AI image by appending the given right_half_of_image at the estimated position.
-        Uses 'left' to track time progression across capture intervals.
-        Publishes the image once it's full, then shifts the last quarter to restart.
-        Only runs when both ai_image_enabled (capability) and ai_enabled (hub flag) are set.
-        """
-        if not self.hub.data.get('ai_available', False) or not self.hub.data.get('ai_enabled', False):
-            self.ai_image = None
-            return
-
-        if self.ai_image is None:
-            self.ai_image = np.zeros((self.src_height, self.src_height * 3, 3), dtype=np.uint8)
-            self._ai_image_cursor = 0
-            self._last_ai_left = left
-
-        # Estimate time-based shift since last right_half_of_image
-        self._ai_image_cursor += (left - self._last_ai_left) % max_left
-        self._last_ai_left = left
-
-        # Append new right_half_of_image
-        self.ai_image[:, self._ai_image_cursor : self._ai_image_cursor + right_half_of_image.shape[1]] = right_half_of_image
-        self.hub.publish_threadsafe(raw_ai_input_image=self.ai_image)
-
-        # If first square is full, publish it and shift right quarter to left for overlap
-        if self._ai_image_cursor >= self.src_height:
-            square = self.ai_image[:, :self.src_height].copy()
-            px_per_second = self.fps * self.slot_width
-            ai_time_start = time.time() - self._ai_image_cursor / px_per_second
-            self.hub.publish_threadsafe(ai_input_image=square, ai_input_image_time_start=ai_time_start)
-
-            overlap = round(self.src_height * self.ai_overlap)
-            self.ai_image[:, :(self.src_height * 2 + overlap)] = self.ai_image[:, (self.src_height - overlap):(3 * self.src_height)]
-            self.ai_image[:, self.src_height:] = 0
-            self._ai_image_cursor = self._ai_image_cursor - self.src_height + overlap
-
-
-    def __postprocess_capture(self, last_capture):
-        img = self.__stamp_image(last_capture.img, last_capture.metadata)
-        self.hub.publish_threadsafe(image=img, metadata=last_capture.metadata)
-        basename = self.__write_image_and_metadata(img, last_capture.metadata)
-        logging.info("Image taken %s", basename)
-
-    def __stamp_image(self, img, metadata):
-        height, width = img.shape[:2]
-        time_start = metadata.get("time_start")
-
-        if self.stamp_options.get("time"):
-            cv.putText(img, time.ctime(time_start), (4, height - 20),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.5, STAMPS_COLOR, 1, cv.LINE_AA)
-
-        if self.stamp_options.get("fps"):
-            cv.putText(img, f"{metadata.get('fps'):.2f} FPS", (4, 20),
-                       cv.FONT_HERSHEY_SIMPLEX, 0.5, STAMPS_COLOR, 1, cv.LINE_AA)
-
-        if self.stamp_options.get("ticks"):
-            # draw vertical tick lines every second
-            for ix in range(-1, self.time_span):
-                x = round((ix + 1 - (time_start - math.floor(time_start))) * self.fps * self.slot_width)
-                cv.line(img, (x, height - 10), (x, height), STAMPS_COLOR, 1)
-                if self.stamp_options.get("tick-texts"):
-                    tick_text = str((math.floor(time_start + 1 + ix) % 60))
-                    cv.putText(img, tick_text, (x + 3, height - 3),
-                               cv.FONT_HERSHEY_SIMPLEX, 0.3, STAMPS_COLOR, 1, cv.LINE_AA)
-        return img
-
-    def __write_metadata_jsons(self, last_index):
-        # per-session metadata file
-        session_meta_path = f"{self.outdir}/{self.session_name}/index.json"
-        with open(session_meta_path, "w") as f:
-            json.dump(self.__session_metadata(last_index), f)
-
-        # shared metadata index across sessions
-        global_meta_path = f"{self.outdir}/index.json"
-        try:
-            with open(global_meta_path, "r") as f:
-                global_data = json.load(f)
-        except FileNotFoundError:
-            global_data = {}
-        global_data[self.session_name] = self.__session_metadata(last_index)
-        with open(global_meta_path, "w") as f:
-            json.dump(global_data, f)
-
-    def __write_image_and_metadata(self, img, metadata):
-        basename = f'{self.outdir}/{self.session_name}/img{metadata["index"]}'
-        cv.imwrite(f"{basename}.webp", img, [cv.IMWRITE_WEBP_QUALITY, self.webp_quality])
-        with open(f"{basename}.json", "w") as f:
-            json.dump(metadata, f, indent=4)
-        self.__write_metadata_jsons(metadata["index"])
-        return basename
-
-    def __session_metadata(self, last_index):
-        return {
-            "session_name": self.session_name,
-            "time_start": self.time_first_start,
-            "time_span": self.time_span,
-            "left_to_right": self.left_to_right,
-            "upside_down": self.upside_down,
-            "px_per_second": self.fps * self.slot_width,
-            "slot_width": self.slot_width,
-            "last_index": last_index,
-            "height": self.src_height,
-        }
 
     def __init_video(self):
         # OpenCV backend choice depending on platform
@@ -271,10 +289,10 @@ class Grabber:
         # read one frame to determine frame shape
         src = self.capture_frame()
         self.src_height, self.src_width = src.shape[:2]
-        self.src_middle_left = self.src_width // 2
+        self.strip_left = self.src_width // 2
 
     def __stop_video(self):
-        # release camera safely even if thread is reading
+        # release camera safely even if the camera thread is mid-read
         if self.video_capture:
             with self.video_capture_lock:
                 self.video_capture.release()

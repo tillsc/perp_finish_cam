@@ -90,21 +90,21 @@ async def ws_live():
                     except Exception as e:
                         logging.debug("AI detection send failed: %s", e)
 
-                if "live_image" in app.hub.data:
+                if "current_scan" in app.hub.data:
                     fut = None
-                    metadata = app.hub.data["live_metadata"]
-                    if last_index != metadata['index']:
+                    scan = app.hub.data["current_scan"]
+                    if last_index != scan.index:
                         # Schedule metadata send early to parallelize with image encoding
-                        json_bytes = bytearray(json.dumps(metadata), 'utf-8')
+                        json_bytes = bytearray(json.dumps(scan.metadata), 'utf-8')
                         try:
                             fut = websocket.send(np.insert(json_bytes, 0, 1))
                         except Exception as e:
                             logging.debug("Metadata send failed: %s", e)
-                        last_index = metadata['index']
+                        last_index = scan.index
 
                     # Compress image in background
                     retval, buf = await asyncio.to_thread(cv.imencode,
-                        ".webp", app.hub.data["live_image"], [cv.IMWRITE_WEBP_QUALITY, 30]
+                        ".webp", scan.image, [cv.IMWRITE_WEBP_QUALITY, 30]
                     )
 
                     try:

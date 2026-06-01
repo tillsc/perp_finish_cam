@@ -56,7 +56,7 @@ Command-Line Options
 The application supports a variety of options to control its behavior:
 
 - `outdir`: Output directory for images and metadata (default: `./data`)
-- `--preview`: Show preview windows while capturing; optionally specify modes: `live`, `final`, `raw`, `ai_input_image`, `raw_ai_input_image`, `ai_output_image` (default when flag is set without values: `live` + `raw`)
+- `--preview`: Show preview windows while capturing; optionally specify modes: `live`, `final`, `raw`, `ai_input_image`, `ai_output_image` (default when flag is set without values: `live` + `raw`)
 - `--left-to-right`: Set direction of movement (default: right-to-left)
 - `--time-span`: Duration in seconds per image (default: 10)
 - `--fps`: Frames per second to request from the camera (default: 30)

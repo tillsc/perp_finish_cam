@@ -6,6 +6,7 @@ import time
 import signal
 
 import finishcam.grabber
+import finishcam.postprocessor
 import finishcam.webapp
 import finishcam.preview
 import finishcam.pubsub
@@ -51,12 +52,15 @@ async def start(args):
             hub, session_name, args.outdir,
             args.time_span, args.fps, args.slot_width, args.left_to_right,
             shutdown_event, upside_down=args.upside_down,
-            webp_quality=args.webp_quality, stamp_time=not args.no_stamp_time,
-            test_mode=args.test_mode, stamp_fps=args.stamp_fps,
+            webp_quality=args.webp_quality,
             video_capture_index=args.video_capture_index,
-            resolution=args.resolution,
-            ai_overlap=args.ai_overlap,
+            resolution=args.resolution, ai_overlap=args.ai_overlap,
             debug=args.debug
+        ))
+        tasks.append(finishcam.postprocessor.create_task(
+            hub, args.outdir,
+            webp_quality=args.webp_quality,
+            stamp_time=not args.no_stamp_time, stamp_fps=args.stamp_fps,
         ))
         if args.preview is not None:
             tasks.append(finishcam.preview.create_task(hub, modes=(args.preview or ["raw", "live"])))
@@ -95,8 +99,8 @@ def main():
     )
     parser.add_argument("outdir", default="data", nargs="?", help="Output directory (default: './data')")
     parser.add_argument("-p", "--preview", nargs="*", default=None,
-                        choices=["live", "final", "raw", "ai_input_image", "raw_ai_input_image", "ai_output_image"],
-                        help="Choose preview modes: live, final, raw, ai_input_image, raw_ai_input_image, ai_output_image (default: live + raw if flag is set without values)"
+                        choices=["live", "final", "raw", "ai_input_image", "ai_output_image"],
+                        help="Choose preview modes: live, final, raw, ai_input_image, ai_output_image (default: live + raw if flag is set without values)"
     )
     parser.add_argument("-l", "--left-to-right", action="store_true",
                         help="Race is coming from the left (default: from the right)")
@@ -117,8 +121,6 @@ def main():
                         help="Do not print timestamp on each output image")
     parser.add_argument("--stamp-fps", action="store_true",
                         help="Print FPS on each output image")
-    parser.add_argument("--test-mode", type=int,
-                        help="Create the given amount of test images and exit")
     parser.add_argument("--webp-quality", type=int, default=90,
                         help="Quality for webp compression (default: 90)")
     parser.add_argument("--no-capture", action="store_true",
