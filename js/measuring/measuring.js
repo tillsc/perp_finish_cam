@@ -163,7 +163,8 @@ class PerpFinishcamMeasuringElement extends LitElement {
                 <div class="images-outer">
                     <div class="images" ${ref(this.imagesRef)} @scroll="${this}">
                         ${[...Array(this.sessionMetadataService.imageCount()).keys()].map(index => html`
-                            <img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}" 
+                            <img src="${this.sessionMetadataService.buildUri(`img${index}.webp`)}"
+                                 loading="lazy"
                                  .timeStart="${this.sessionMetadataService.timeStart(index)}">
                         `)}
                         ${this.sessionMetadataService.isLive() ? html`
