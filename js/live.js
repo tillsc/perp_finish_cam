@@ -15,12 +15,24 @@ class PerpFinishcamLiveElement extends HTMLElement {
     connectedCallback() {
         this.parseAttributes();
         this.timeStartHistory[this.currentIndex] = this.timeStart;
+        this._reconnectDelay = 1000;
+        this._alive = true;
+        this._connectWS();
+    }
 
+    _connectWS() {
+        if (!this._alive) return;
         const loc = new URL(this.getAttribute('href') || window.location.toString());
         const wsUri = (loc.protocol === "https:" ? "wss" : "ws") + "://" + loc.host + "/ws/live";
         this.webservice = new WebSocket(wsUri, ['live-image', 'metadata']);
         this.webservice.binaryType = "arraybuffer";
         this.webservice.onmessage = event => this.handleMessage(event.data);
+        this.webservice.onopen = () => { this._reconnectDelay = 1000; };
+        this.webservice.onclose = () => {
+            if (!this._alive) return;
+            this._reconnectTimer = setTimeout(() => this._connectWS(), this._reconnectDelay);
+            this._reconnectDelay = Math.min(this._reconnectDelay * 2, 30000);
+        };
     }
 
     attributeChangedCallback(name, _oldValue, newValue) {
@@ -34,6 +46,8 @@ class PerpFinishcamLiveElement extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this._alive = false;
+        clearTimeout(this._reconnectTimer);
         this.webservice?.close();
         this.objectURLHistory.forEach((historyElement) => {
             if (historyElement) {
