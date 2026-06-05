@@ -22,6 +22,7 @@ app.active_ws_tasks = set()  # Track live WebSocket tasks for cancellation
 def add_header(response):
     from quart import request
     response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
     if request.path.startswith("/data/") and request.path.endswith(".webp"):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
