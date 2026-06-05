@@ -20,9 +20,13 @@ app.active_ws_tasks = set()  # Track live WebSocket tasks for cancellation
 
 @app.after_request
 def add_header(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    from quart import request
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Pragma"] = "no-cache"
+    if request.path.startswith("/data/") and request.path.endswith(".webp"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
     return response
 
 
