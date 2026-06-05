@@ -71,6 +71,7 @@ async def ws_live():
 
         last_index = None
         last_ai_enabled = app.hub.data.get('ai_enabled', False)
+        last_detections = None
 
         with finishcam.pubsub.Subscription(app.hub) as event:
             while True:
@@ -82,9 +83,9 @@ async def ws_live():
                     last_ai_enabled = ai_enabled
                     await _send_ai_status()
 
-                # pop() consumes the detection so it won't be re-sent on the next event
-                detections = app.hub.data.pop('ai_detections', None)
-                if detections:
+                detections = app.hub.data.get('ai_detections')
+                if detections is not None and detections is not last_detections:
+                    last_detections = detections
                     try:
                         await websocket.send(bytes([0x02]) + bytearray(json.dumps(detections), 'utf-8'))
                     except Exception as e:
